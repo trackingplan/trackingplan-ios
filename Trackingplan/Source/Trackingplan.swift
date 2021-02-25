@@ -2,6 +2,15 @@
 import Foundation
 import NetworkInterceptor
 
+
+/* TODO
+ - Make sure installing that after installing tp, everything is not blocking the main thread (or anything!)
+ - Try Catch everything. App should not ever be broken by this package.
+ - Probably convert config dictionary into a struct / class
+ - Shared member, so trackingplan object can be accessed through Trackingplan.shared() anywhere in the app. i.e. for stopping it.
+ 
+ */
+
 @objc public class Trackingplan: NSObject {
     
     private static let interceptor = NetworkInterceptor()
@@ -21,6 +30,15 @@ import NetworkInterceptor
     }
     public func start(){
         
+        /*let requestRedirectors: [RequestRedirector] = [
+            RequestRedirector(requestEvaluator: DomainHttpRequestEvaluator(domain: "segment.io"),
+                redirectableRequestHandler: AlternateUrlRequestRedirector(url: URL(string: "https://enxzt9ro1z1t9.x.pipedream.net/")!))
+        ]
+        let networkConfig = NetworkInterceptorConfig(requestRedirectors: requestRedirectors)
+        NetworkInterceptor.shared.setup(config: networkConfig)
+        NetworkInterceptor.shared.startRecording()*/
+        
+        
         let requestSniffers: [RequestSniffer] = [
             RequestSniffer(requestEvaluator: AnyHttpRequestEvaluator(), handlers: [
                 self.requestHandler
@@ -30,6 +48,7 @@ import NetworkInterceptor
         let networkConfig = NetworkInterceptorConfig(requestSniffers: requestSniffers)
         NetworkInterceptor.shared.setup(config: networkConfig)
         NetworkInterceptor.shared.startRecording()
+        
     }
     
     public func stop(){
@@ -54,8 +73,8 @@ private var defaultOptions: Dictionary<String, Any?> =
 private var defaultProviderDomains: Dictionary<String, String> =
     [
         "google-analytics.com": "googleanalytics",
-        "segment.com": "segment",
-        "segment.io": "segment",
+        "api.segment.com": "segment",
+        "api.segment.io": "segment",
         "quantserve.com": "quantserve",
         "intercom.com": "intercom",
         "amplitude": "amplitude",

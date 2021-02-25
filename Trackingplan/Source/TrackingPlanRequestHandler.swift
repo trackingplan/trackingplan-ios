@@ -20,7 +20,9 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
     
     // This function name cannot be changed, it's a convention from NetworkInterceptor
     public func sniffRequest(urlRequest: URLRequest) {
-        _ = processRequest(urlRequest: urlRequest)
+        let alternateRequest = URLRequestFactory().createURLRequest(originalUrlRequest: urlRequest)
+        
+        _ = processRequest(urlRequest: alternateRequest)
     }
     
     public func processRequest(urlRequest: URLRequest) -> Bool{
@@ -56,14 +58,31 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         let raw_track = self.createRawTrack(urlRequest:urlRequest, provider: provider, sampleRate: sampleRate)
 
         let session = URLSession.shared
-        let url = URL(string: self.options["trackingplanEndpoint"] as! String)!
+        //let url = URL(string: self.options["trackingplanEndpoint"] as! String)!
+        
+        let url = URL(string: "https://enxzt9ro1z1t9.x.pipedream.net")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let jsonData = try! JSONSerialization.data(withJSONObject: raw_track, options: [])
-        let task = session.uploadTask(with: request, from: jsonData) { data, response, error in
-            if(self.options["debug"] as Bool == true){
-                print("APPLAUSE: RECIBIDA RESPUESTA AMIGO")
+        request.httpBody = jsonData
+        let task = session.dataTask(with: request) { data, response, error in
+            if(self.options["debug"] as! Bool == true){
+                guard let data = data,
+                        let response = response as? HTTPURLResponse,
+                        error == nil else {                                              // check for fundamental networking error
+                        print("error", error ?? "Unknown error")
+                        return
+                    }
+
+                    guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
+                        print("statusCode should be 2xx, but is \(response.statusCode)")
+                        print("response = \(response)")
+                        return
+                    }
+
+                    let responseString = String(data: data, encoding: .utf8)
+                    print("responseString = \(responseString)")
             }
         }
 
@@ -77,7 +96,7 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
             print("UNQUEUE "+String(self.queue.count))
             let urlRequest = self.queue.popLast()
             _ = self.processRequest(urlRequest: urlRequest!)
-            sleep(1)
+            
         }
         
     }
@@ -142,23 +161,23 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         }
     }
     
-    private func createRawTrack(urlRequest:URLRequest, provider: String, sampleRate: Int) -> Dictionary <String, Any>{
-        return [
+    private func createRawTrack(urlRequest:URLRequest, provider: String, sampleRate: Int) -> Dictionary<String, Any>{
+             return [
             // Normalized provider name (extracted from domain/regex => provider hash table).
             "provider": provider,
             
             "request": [
                 // The original provider endpoint URL
-                "endpoint": urlRequest.url as Any,
+                "endpoint": urlRequest.url!.absoluteString,
                 // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
                 "method": urlRequest.httpMethod as Any,
                 // The payload, in its original form. If it’s a POST request, the raw payload, if it’s a GET, the querystring (are there other ways?).
                 "post_payload": urlRequest.getHttpBody() as Any,
-            ],
+            ] ,
             "context": [
                 "app_version_long": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String,
                 "app_name": Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String,
-                "app_build_numnber": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
+                "app_build_number": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
                 
                 // Information that is extracted in run time that can be useful. IE. UserAgent, URL, etc. it varies depending on the platform. Can we standardize it?
             ],
@@ -186,3 +205,19 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
 }
 
 
+class URLRequestFactory {
+    public func createURLRequest(originalUrlRequest: URLRequest) -> URLRequest {
+ 
+        var redirectedRequest = URLRequest(url: originalUrlRequest.url!)
+        if let _ = originalUrlRequest.httpBodyStream,
+            let httpBodyStreamData = originalUrlRequest.getHttpBodyStreamData() {
+            redirectedRequest.httpBody = httpBodyStreamData
+        } else {
+            redirectedRequest.httpBody = originalUrlRequest.httpBody
+        }
+        redirectedRequest.httpMethod = originalUrlRequest.httpMethod!
+        redirectedRequest.allHTTPHeaderFields = originalUrlRequest.allHTTPHeaderFields
+        redirectedRequest.cachePolicy = originalUrlRequest.cachePolicy
+        return redirectedRequest
+    }
+}
