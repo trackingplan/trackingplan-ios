@@ -10,12 +10,12 @@ import Foundation
 import NetworkInterceptor
 
 public class TrackingPlanRequestHandler: SniffableRequestHandler {
-    private var options: Dictionary<String, Any?>
+    private var config: TrackingplanConfig
     private var queue: [URLRequest] = []
     private var updatingSampleRate = false
     
-    public init(options: Dictionary<String, Any?>){
-        self.options = options
+    public init(config: TrackingplanConfig){
+        self.config = config
     }
     
     // This function name cannot be changed, it's a convention from NetworkInterceptor
@@ -24,25 +24,25 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         _ = processRequest(urlRequest: alternateRequest)
     }
     
-    public func processRequest(urlRequest: URLRequest) -> Bool{
-        let provider = self.getAnalyticsProvider(url: urlRequest.url!.absoluteString, providerDomains: self.options["providerDomains"] as! Dictionary<String, String>)
+    private func processRequest(urlRequest: URLRequest) -> Bool{
+        let provider = self.getAnalyticsProvider(url: urlRequest.url!.absoluteString, providerDomains: self.config.providerDomains)
         
         if(provider == nil){
             return false
         }
-        if (self.isDebug()) { print("FOUND REQUEST TO "+provider!) }
+        self.log(string:"FOUND REQUEST TO "+provider!)
         
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0){
-            if (self.isDebug()) { print("APPEND TO QUEUE "+String(self.queue.count)) }
+            self.log(string:"APPEND TO QUEUE "+String(self.queue.count))
             self.queue.append(urlRequest)
             self.updateSampleRateAndProcessQueue()
             return false
         }
         let rolledDice = (Float(arc4random()) / Float(UInt32.max))
         let rate = 1 / Float(sampleRate)
-        if((self.options["ignoreSampling"] as! Bool) == false && rolledDice > rate ){
-            if (self.isDebug()) { print("===BAD LUCK REQUEST "+String(rolledDice) + " > " + String(rate)) }
+        if(!self.config.ignoreSampling && rolledDice > rate ){
+            self.log(string:"===BAD LUCK REQUEST "+String(rolledDice) + " > " + String(rate))
             return true;
         }
         
@@ -52,7 +52,7 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
     }
     
     private func isDebug() -> Bool {
-        return (self.options["debug"] as! Bool == true)
+        return (self.config.debug)
     }
     
     
@@ -60,9 +60,9 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         let raw_track = self.createRawTrack(urlRequest:urlRequest, provider: provider, sampleRate: sampleRate)
 
         let session = URLSession.shared
-        let url = URL(string: self.options["trackingplanEndpoint"] as! String)!
+        let url = URL(string: self.config.trackingplanEndpoint)
         //let url = URL(string: "https://enxzt9ro1z1t9.x.pipedream.net")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let jsonData = try! JSONSerialization.data(withJSONObject: raw_track, options: [])
@@ -83,7 +83,7 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
                     }
 
                     let responseString = String(data: data, encoding: .utf8)
-                    print("responseString = \(responseString)")
+                print("responseString = \(String(describing: responseString))")
             }
         }
 
@@ -94,7 +94,7 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
     
     private func processQueue(){
         while (!self.queue.isEmpty) {
-            if (self.isDebug()){print("UNQUEUE "+String(self.queue.count))}
+            self.log(string:"UNQUEUE "+String(self.queue.count))
             let urlRequest = self.queue.popLast()
             _ = self.processRequest(urlRequest: urlRequest!)
             
@@ -110,13 +110,13 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         }
         return nil
     }
-    public func setSampleRate(sampleRate: Int){
-        if (self.isDebug()){print(">>>SET SAMPLE RATE A "+String(sampleRate))}
+    private func setSampleRate(sampleRate: Int){
+        self.log(string:">>>SET SAMPLE RATE A "+String(sampleRate))
         let value = String(sampleRate)+"|"+String(self.getCurrentTS())
         UserDefaults.standard.set(value, forKey: "trackingplanSampleRate")
     }
     
-    public func getSampleRate() -> Int{
+    private func getSampleRate() -> Int{
         let sampleRateWithTS = UserDefaults.standard.string(forKey: "trackingplanSampleRate")
         if (sampleRateWithTS == nil){
             return 0
@@ -125,12 +125,12 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         let parts = sampleRateWithTS!.split(separator: "|")
         let sampleRate = Int(parts[0]) ?? 0
         let ts = Int(parts[1]) ?? 0
-        if (self.isDebug()){print("GET SAMPLE RATE "+String(sampleRate))}
+        self.log(string:"GET SAMPLE RATE "+String(sampleRate))
         let currentTS = self.getCurrentTS()
-        if(ts+50 > currentTS ){
+        if(ts+86400 > currentTS ){
             return sampleRate
         } else {
-            if (self.isDebug()){print("SAMPLE RATE EVICTED")}
+            self.log(string:"SAMPLE RATE EVICTED")
             return 0
         }
     }
@@ -139,51 +139,44 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         return Int(round(NSDate().timeIntervalSince1970))
     }
     
-    public func updateSampleRateAndProcessQueue(){
-        if (self.isDebug()){print("---START UPDATE")}
+    private func updateSampleRateAndProcessQueue(){
+        self.log(string:"---START UPDATE")
         if(self.updatingSampleRate) {
-            if (self.isDebug()){print("***ALREADY UPDATING")}
+            self.log(string:"***ALREADY UPDATING")
             return
         }
         self.updatingSampleRate = true; // TODO: is this shitty lock ok?
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0) {
             
-            let url = URL(string: self.options["trackingplanConfigEndpoint"] as! String)!
+            let url = URL(string: self.getConfigUrl())!
             
             let task = URLSession.shared.dataTask(with: url) {(data, response, error) in
-                guard let data = data,
-                        let response = response as? HTTPURLResponse,
-                        error == nil else {                                              // check for fundamental networking error
-                    if(self.isDebug()) {
-                        print("error downoading sample rate", error ?? "Unknown error")}
-                        return
-                    }
-
-                    guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
-                        if(self.isDebug()) {
-                            print("downloading sample rate statusCode should be 2xx, but is \(response.statusCode)")
-                            print("response = \(response)")
-                        }
-                        return
-                    }
-
-                    let responseString = String(data: data, encoding: .utf8)
-                    if(self.isDebug()) {
-                        print("sample rate string = \(responseString)")
-                    }
+                guard let dataResponse = data,
+                          error == nil else {
+                          print(error?.localizedDescription ?? "Response Error")
+                          return }
+                    do{
+                         let json = try JSONSerialization.jsonObject(with: dataResponse
+                        , options: []) as! [String: Int]
+                        let sampleRate = Int(json["sample_rate"]!) //Response result
+                        self.setSampleRate(sampleRate: sampleRate)
+                        self.updatingSampleRate = false
+                        self.processQueue()
+                     } catch let error {
+                        print("Processing config response error", error)
+                        self.updatingSampleRate = false
+                   }
                 
                 
-                self.setSampleRate(sampleRate: 4)
-                self.updatingSampleRate = false;
-                self.processQueue()
+
             }
             task.resume()
         }
     }
     
-    private func log(string: String, force: Bool = false){
-        if(self.isDebug() || force == false){
+    func log(string: String, force: Bool? = false){
+        if(self.config.debug || force == true){
             print(string);
         }
     }
@@ -209,11 +202,11 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
                 // Information that is extracted in run time that can be useful. IE. UserAgent, URL, etc. it varies depending on the platform. Can we standardize it?
             ],
             // A key that identifies the customer. It’s written by the developer on the SDK initialization.
-            "tp_id": self.options["tpId"] as Any,
+                "tp_id": self.config.tpId,
             // An optional alias that identifies the source. It’s written by the developer on the SDK initialization.
-            "source_alias": self.options["sourceAlias"] as Any,
+                "source_alias": self.config.sourceAlias,
             // An optional environment. It’s written by the developer on the SDK initialization. Useful for the developer testing. Can be "PRODUCTION" or "TESTING".
-            "environment": self.options["environment"]!!,
+                "environment": self.config.environment,
             // The used sdk. It’s known by the sdk itself.
             "sdk": Trackingplan.sdk,
             // The SDK version, useful for implementing different parsing strategies. It’s known by the sdk itself.
@@ -221,12 +214,13 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
             // The rate at which this specific track has been sampled.
             "sampling_rate": sampleRate,
             // Debug mode. Makes every request return and console.log the parsed track.
-            "debug": self.options["debug"] as Any
+                "debug": self.config.debug
         ]
         
-        
-        
-        
+    }
+    
+    private func getConfigUrl() -> String{
+        return self.config.trackingplanConfigEndpoint + "config-" + self.config.tpId + ".json";
     }
     
 }
