@@ -2,6 +2,7 @@
 //  TrackingPlanRequestHandler.swift
 //  Trackingplan
 //
+//
 //  Created by José Luis Pérez on 24/2/21.
 //
 
@@ -15,13 +16,11 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
     
     public init(options: Dictionary<String, Any?>){
         self.options = options
-        
     }
     
     // This function name cannot be changed, it's a convention from NetworkInterceptor
     public func sniffRequest(urlRequest: URLRequest) {
         let alternateRequest = URLRequestFactory().createURLRequest(originalUrlRequest: urlRequest)
-        
         _ = processRequest(urlRequest: alternateRequest)
     }
     
@@ -31,11 +30,11 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         if(provider == nil){
             return false
         }
-        print("FOUND REQUEST TO "+provider!)
+        if (self.isDebug()) { print("FOUND REQUEST TO "+provider!) }
         
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0){
-            print("APPEND TO QUEUE "+String(self.queue.count))
+            if (self.isDebug()) { print("APPEND TO QUEUE "+String(self.queue.count)) }
             self.queue.append(urlRequest)
             self.updateSampleRateAndProcessQueue()
             return false
@@ -43,7 +42,7 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         let rolledDice = (Float(arc4random()) / Float(UInt32.max))
         let rate = 1 / Float(sampleRate)
         if((self.options["ignoreSampling"] as! Bool) == false && rolledDice > rate ){
-            print("===BAD LUCK REQUEST "+String(rolledDice) + " > " + String(rate))
+            if (self.isDebug()) { print("===BAD LUCK REQUEST "+String(rolledDice) + " > " + String(rate)) }
             return true;
         }
         
@@ -52,22 +51,24 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         return true
     }
     
+    private func isDebug() -> Bool {
+        return (self.options["debug"] as! Bool == true)
+    }
     
     
     private func sendToTrackingPlan(urlRequest: URLRequest, provider: String, sampleRate: Int){
         let raw_track = self.createRawTrack(urlRequest:urlRequest, provider: provider, sampleRate: sampleRate)
 
         let session = URLSession.shared
-        //let url = URL(string: self.options["trackingplanEndpoint"] as! String)!
-        
-        let url = URL(string: "https://enxzt9ro1z1t9.x.pipedream.net")!
+        let url = URL(string: self.options["trackingplanEndpoint"] as! String)!
+        //let url = URL(string: "https://enxzt9ro1z1t9.x.pipedream.net")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let jsonData = try! JSONSerialization.data(withJSONObject: raw_track, options: [])
         request.httpBody = jsonData
         let task = session.dataTask(with: request) { data, response, error in
-            if(self.options["debug"] as! Bool == true){
+            if(self.isDebug()){
                 guard let data = data,
                         let response = response as? HTTPURLResponse,
                         error == nil else {                                              // check for fundamental networking error
@@ -93,7 +94,7 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
     
     private func processQueue(){
         while (!self.queue.isEmpty) {
-            print("UNQUEUE "+String(self.queue.count))
+            if (self.isDebug()){print("UNQUEUE "+String(self.queue.count))}
             let urlRequest = self.queue.popLast()
             _ = self.processRequest(urlRequest: urlRequest!)
             
@@ -110,11 +111,9 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         return nil
     }
     public func setSampleRate(sampleRate: Int){
-        print(">>>SET SAMPLE RATE A "+String(sampleRate))
+        if (self.isDebug()){print(">>>SET SAMPLE RATE A "+String(sampleRate))}
         let value = String(sampleRate)+"|"+String(self.getCurrentTS())
-        
         UserDefaults.standard.set(value, forKey: "trackingplanSampleRate")
-        //UserDefaults.standard.removeObject(forKey: "TrackingplanSampleRate")
     }
     
     public func getSampleRate() -> Int{
@@ -126,12 +125,12 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
         let parts = sampleRateWithTS!.split(separator: "|")
         let sampleRate = Int(parts[0]) ?? 0
         let ts = Int(parts[1]) ?? 0
-        print("GET SAMPLE RATE "+String(sampleRate))
+        if (self.isDebug()){print("GET SAMPLE RATE "+String(sampleRate))}
         let currentTS = self.getCurrentTS()
         if(ts+50 > currentTS ){
             return sampleRate
         } else {
-            print("SAMPLE RATE EVICTED")
+            if (self.isDebug()){print("SAMPLE RATE EVICTED")}
             return 0
         }
     }
@@ -141,23 +140,51 @@ public class TrackingPlanRequestHandler: SniffableRequestHandler {
     }
     
     public func updateSampleRateAndProcessQueue(){
-        print("---START UPDATE")
+        if (self.isDebug()){print("---START UPDATE")}
         if(self.updatingSampleRate) {
-            print("***ALREADY UPDATING")
+            if (self.isDebug()){print("***ALREADY UPDATING")}
             return
         }
-        self.updatingSampleRate = true;
+        self.updatingSampleRate = true; // TODO: is this shitty lock ok?
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0) {
             
-            let url = URL(string: "http://www.stackoverflow.com")!
+            let url = URL(string: self.options["trackingplanConfigEndpoint"] as! String)!
             
             let task = URLSession.shared.dataTask(with: url) {(data, response, error) in
+                guard let data = data,
+                        let response = response as? HTTPURLResponse,
+                        error == nil else {                                              // check for fundamental networking error
+                    if(self.isDebug()) {
+                        print("error downoading sample rate", error ?? "Unknown error")}
+                        return
+                    }
+
+                    guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
+                        if(self.isDebug()) {
+                            print("downloading sample rate statusCode should be 2xx, but is \(response.statusCode)")
+                            print("response = \(response)")
+                        }
+                        return
+                    }
+
+                    let responseString = String(data: data, encoding: .utf8)
+                    if(self.isDebug()) {
+                        print("sample rate string = \(responseString)")
+                    }
+                
+                
                 self.setSampleRate(sampleRate: 4)
                 self.updatingSampleRate = false;
                 self.processQueue()
             }
             task.resume()
+        }
+    }
+    
+    private func log(string: String, force: Bool = false){
+        if(self.isDebug() || force == false){
+            print(string);
         }
     }
     
