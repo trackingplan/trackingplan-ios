@@ -17,6 +17,5 @@ s.source            = {
 s.requires_arc      = true
 s.source_files = 'Trackingplan/Source/**/*'
 s.dependency 'NetworkInterceptor', '0.0.8'
-s.dependency 'SwiftyJSON', '~> 4.0'
 
 end
