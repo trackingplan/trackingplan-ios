@@ -8,7 +8,7 @@
 - [ ] Add Carthage support.
 - [ ] Find out the swift version that is safe for pods and use that version functions
 - [ ]Ensure this is compatible with ObjC apps.
-- [ ] Improve logging, not print.
+- [ ] Improve logging, remove prints.
 - [ ] Actually publish at cocoapods and add install instructions at the readme. Add example of usage of how to initialize and include.
 - [ ] Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
 - [ ] Sampling
