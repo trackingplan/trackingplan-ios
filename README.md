@@ -14,4 +14,5 @@
 - [ ] Sampling
 - [ ] Make sure code is elegant and readable for experienced developers.
 - [ ] Trackingplan uses some other dependencies. Join all dependencies in the same package.
+- [ ] Suppor all popular package managers.
 
