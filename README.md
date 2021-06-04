@@ -12,5 +12,6 @@
 - [ ] Actually publish at cocoapods and add install instructions at the readme. Add example of usage of how to initialize and include.
 - [ ] Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
 - [ ] Sampling
-- [ ] Make sure code is elegant and readable for experienced developers. 
+- [ ] Make sure code is elegant and readable for experienced developers.
+- [ ] Rethink: Trackingplan installs some other dependencies. 
 
