@@ -8,8 +8,8 @@
 - [ ] Find out the swift version that is safe for pods and use that version functions
 - [ ]Ensure this is compatible with ObjC apps.
 - [ ] Improve logging, not print.
-- [ ]Actually publish at cocoapods and add install instructions at the readme.
-- [ ]Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
-- [ ]Sampling
-- [ ]Make sure code is elegant and readable for experienced developers. 
+- [ ] Actually publish at cocoapods and add install instructions at the readme.
+- [ ] Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
+- [ ] Sampling
+- [ ] Make sure code is elegant and readable for experienced developers. 
 
