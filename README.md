@@ -13,5 +13,5 @@
 - [ ] Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
 - [ ] Sampling
 - [ ] Make sure code is elegant and readable for experienced developers.
-- [ ] Rethink: Trackingplan installs some other dependencies. Join all dependencies in the same package.
+- [ ] Trackingplan installs some other dependencies. Join all dependencies in the same package.
 
