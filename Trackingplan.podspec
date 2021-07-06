@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version           = '0.1.1'
   s.summary           = 'Trackingplan iOS SDK'
   s.homepage          = 'https://github.com/trackingplan/trackingplan-ios'
-  s.platform = :ios, '10.0'
+  s.platform = :ios, '12.0'
   s.license           = {
   :type => 'MIT',
   :file => 'LICENSE'
@@ -15,6 +15,5 @@ Pod::Spec.new do |s|
   :git => 'https://github.com/trackingplan/trackingplan-ios.git',
   :tag => "#{s.version}" }
   s.requires_arc      = true
-  s.source_files = 'Trackingplan/Source/**/*'
-  s.dependency 'NetworkInterceptor', '0.0.8'
+  s.source_files = 'TrackingPlan/Sources/**/*'
 end
