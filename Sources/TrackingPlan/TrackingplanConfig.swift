@@ -26,7 +26,8 @@ extension TrackingplanConfig {
                 trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
-                providerDomains: Dictionary <String, String>? = [:], batchSize: Int = 10
+                providerDomains: Dictionary <String, String>? = [:], 
+                batchSize: Int = 1
     ){
         self.tpId = tpId!
         self.environment = environment!

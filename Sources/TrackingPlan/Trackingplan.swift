@@ -22,7 +22,7 @@ open class TrackingPlan {
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
                 customDomains: Dictionary <String, String>? = [:], 
-                batchSize: Int = 10) -> TrackingPlanInstance {
+                batchSize: Int = 1) -> TrackingPlanInstance {
         
         return TrackingplanManager.sharedInstance.initialize(tpId: tpId, environment: environment, sourceAlias: sourceAlias, debug: debug, trackingplanEndpoint: trackingplanEndpoint, trackingplanConfigEndpoint: trackingplanConfigEndpoint, ignoreSampling: ignoreSampling, customDomains: customDomains, batchSize: batchSize)
     }
@@ -44,7 +44,7 @@ open class TrackingplanManager: NSObject {
                          trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                          ignoreSampling: Bool? = false,
                          customDomains: Dictionary <String, String>? = [:], 
-                         batchSize: Int = 10) -> TrackingPlanInstance {
+                         batchSize: Int = 1) -> TrackingPlanInstance {
        
         let providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
         let config = TrackingplanConfig(tpId: tpId, environment: environment, sourceAlias: sourceAlias, debug: debug, trackingplanEndpoint: trackingplanEndpoint, trackingplanConfigEndpoint: trackingplanConfigEndpoint, ignoreSampling: ignoreSampling, providerDomains: providerDomains, batchSize: batchSize)
