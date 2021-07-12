@@ -15,3 +15,4 @@
 - [Oleg] Review edge use cases, is we run the code from another thread?
 - [ ] Make sure to test all use cases: endpoint not responding, 404, server error etc.
 - [ ] Improve logging, remove prints.
+- [ ] Que pasa si me quedo sin conectividad.
