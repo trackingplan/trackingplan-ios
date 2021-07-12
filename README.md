@@ -6,12 +6,12 @@
 - [x ] Add swift packages support
 - [x] Find out the swift version that is safe for pods and use that version functions
 - [ ]Ensure this is compatible with ObjC apps.
-- [ ] Actually publish at cocoapods and add install instructions at the readme. Add example of usage of how to initialize and include.
-- [-] Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
-- [ ] Sampling
+- [x] Actually publish at cocoapods
+- [ ] Install instructions at the readme. Add example of usage of how to initialize and include.
+- [x] Batching: when we sent the batch: after reaching xKbs, app goes to background, something else?
+- [x] Sampling
 - [-] Make sure code is elegant and readable for experienced developers.
-- [ ] Trackingplan uses some other dependencies. Join all dependencies in the same package.
+- [x] Trackingplan uses some other dependencies. Join all dependencies in the same package.
 - [Oleg] Review edge use cases, is we run the code from another thread?
 - [ ] Make sure to test all use cases: endpoint not responding, 404, server error etc.
 - [ ] Improve logging, remove prints.
-- [] Support more targets [WatchOS]
