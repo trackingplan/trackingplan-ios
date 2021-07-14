@@ -8,7 +8,7 @@ Trackingplan will monitor traffic between your app and data destinations and aut
 
 Trackingplan is currently available for Web, iOS and Android. More clients will come soon.
 
-Please request you API KEY at <a href='https://www.trackingplan.com'>trackingplan.com</a> or write us directly team@trackingplan.com.
+Please request your ```TrackingplanId``` at <a href='https://www.trackingplan.com'>trackingplan.com</a> or write us directly team@trackingplan.com.
 
 
 ## Install the SDK
