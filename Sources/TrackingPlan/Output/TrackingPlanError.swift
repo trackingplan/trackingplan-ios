@@ -19,3 +19,9 @@ enum TrackingPlanError: Error {
         return String(describing: self)
     }
 }
+
+enum TrackingPlanMessage{
+    case message(String)
+    case error(String, String)
+    case success
+}

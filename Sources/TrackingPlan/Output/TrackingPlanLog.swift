@@ -21,9 +21,22 @@ struct TrackingPlanLogging {
         switch error {
         case .debugError(_, _):
             os_log("", log: OSLog.sniffLog, type: .error)
-
+        
         default:
             os_log("Unknow Error", log: OSLog.sniffLog, type: .error)
         }
+    }
+    
+    static func debug(message: TrackingPlanMessage) {
+        #if DEBUG
+        switch message {
+        case .error(let code, let message):
+            print("TRACKINGPLANIOS: ERROR - Code: \(code) , Message: \(message)")
+        case .message(let msg):
+            print("TRACKINGPLANIOS: \(msg)")
+        case .success:
+            print("TRACKINGPLANIOS: Success")
+        }
+        #endif
     }
 }

@@ -7,15 +7,32 @@
 
 import Foundation
 
+
 public class TrackingPlanQueue {
     static let delay: DispatchTime = DispatchTime.now() + 0.25
+    static let archiveNotificationName = Notification.Name("on-selected-skin")
     static let defaultArchiveKey = "com.trackingplan.store"
     static let archiveKey = "trackingPlanQueue"
     private var storage: [TrackingPlanTrack]
-    
+    let readWriteLock = ReadWriteLock(label: "com.trackingPlan.globallock")
+
+    fileprivate let validArchive: Bool = {
+        //Check is last archive tracks ar older than 24h
+        if let lastUnarchiveDate = UserDefaultsHelper.getData(type: Int.self, forKey: .lastArchivedDate) {
+            return Int(TrackingplanConfig.getCurrentTimestamp())  < lastUnarchiveDate + 86400
+        }
+        return false
+    }()
+
     init()
     {
         self.storage = [TrackingPlanTrack]()
+        //Build previous storage
+        unarchive()
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(archive),
+                                               name: TrackingPlanQueue.archiveNotificationName,
+                                       object: nil)
     }
     
     
@@ -24,83 +41,171 @@ public class TrackingPlanQueue {
     }
     func enqueue(_ element: TrackingPlanTrack) -> Void
     {
-        self.storage.append(element)
+        self.readWriteLock.write {
+            self.storage.append(element)
+
+        }
     }
-    
+
     func dequeue() -> TrackingPlanTrack?
     {
         return self.storage.removeFirst()
     }
     
-    func archive() {
-        var storageDict = [String : Any]()
-        let tracks = self.storage.map{$0.rawTrack}
-        storageDict[TrackingPlanQueue.archiveKey] = tracks
-        UserDefaults.standard.setValue(tracks, forKey: TrackingPlanQueue.defaultArchiveKey)
+    
+    @objc func archive() {
+        //Archive tracks
+        UserDefaults.standard.encode(for: self.storage, using: TrackingPlanQueue.defaultArchiveKey)
+        //Save timestamp for archive
+        UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .lastArchivedDate)
+        Logger.debug(message: TrackingPlanMessage.message("Storage archive success count: \(self.storage.count) "))
+
     }
     
     public func unarchive() {
-        let current = UserDefaults.standard.object(forKey: TrackingPlanQueue.defaultArchiveKey) as? [String : Any]
-        var savedTracks: [TrackingPlanTrack] = []
-        current?.forEach({ (key: String, value: Any) in
-            savedTracks.append(TrackingPlanTrack(rawTrack: [key:value]))
-        })
-        self.storage.append(contentsOf: savedTracks)
-        UserDefaults.standard.setValue(nil, forKey: TrackingPlanQueue.defaultArchiveKey)
+        guard let tracksArray = UserDefaults.standard.decode(for: [TrackingPlanTrack].self, using: TrackingPlanQueue.defaultArchiveKey), validArchive else {
+            return
+        }
         
+        Logger.debug(message: TrackingPlanMessage.message("Storage unarchive success count: \(tracksArray.count) "))
+        self.storage.append(contentsOf:tracksArray)
+        //Cleanup Tracks archive
+        UserDefaults.standard.setValue(nil, forKey: TrackingPlanQueue.defaultArchiveKey)
+        //Remove timestamp for archived tracks
+        UserDefaultsHelper.removeData(key: .lastArchivedDate)
+
     }
     
     func retrieveRaw() -> [[String:Any]]? {
-        defer {
+        return self.storage.map({$0.dictionary!})
+    }
+    
+    func cleanUp() {
+        readWriteLock.write {
             self.storage.removeAll()
+
         }
-        return self.storage.map({$0.rawTrack})
+        UserDefaults.standard.setValue(nil, forKey: TrackingPlanQueue.defaultArchiveKey)
     }
 }
 
-class TrackingPlanTrack {
-    public let rawTrack: [String : Any]
-    
-    init(rawTrack: [String: Any]) {
-        self.rawTrack = rawTrack
+
+
+struct TrackingPlanTrack: Codable {
+    enum TrackKeys: String, CodingKey {
+        case provider
+        case request
+        case context
+        case tp_id
+        case source_alias
+        case environment
+        case sdk
+        case sdk_version
+        case samplingRate
+        case debug
     }
+    
+    let provider: String
+    let request: TrackingPlanTrackRequest?
+    let context = TrackingPlanTrackContext()
+    let tp_id: String
+    let source_alias: String
+    let environment: String
+    let sdk: String
+    let sdk_version: String
+    let samplingRate: Int
+    let debug: Bool
     
     init (urlRequest: URLRequest, provider: String, sampleRate: Int, config: TrackingplanConfig) {
-        self.rawTrack =  [
-            // Normalized provider name (extracted from domain/regex => provider hash table).
-            "provider": provider,
-            
-            "request": [
-                // The original provider endpoint URL
-                "endpoint": urlRequest.url!.absoluteString,
-                // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
-                "method": urlRequest.httpMethod as Any,
-                // The payload, in its original form. If it’s a POST request, the raw payload, if it’s a GET, the querystring (are there other ways?).
-                "post_payload": urlRequest.getHttpBody() as Any,
-            ] ,
-            "context": [
-                "app_version_long": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String,
-                "app_name": Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String,
-                "app_build_number": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
-                
-                // Information that is extracted in run time that can be useful. IE. UserAgent, URL, etc. it varies depending on the platform. Can we standardize it?
-            ],
-            // A key that identifies the customer. It’s written by the developer on the SDK initialization.
-                "tp_id": config.tpId,
-            // An optional alias that identifies the source. It’s written by the developer on the SDK initialization.
-                "source_alias": config.sourceAlias,
-            // An optional environment. It’s written by the developer on the SDK initialization. Useful for the developer testing. Can be "PRODUCTION" or "TESTING".
-                "environment": config.environment,
-            // The used sdk. It’s known by the sdk itself.
-            "sdk": TrackingplanManager.sdk,
-            // The SDK version, useful for implementing different parsing strategies. It’s known by the sdk itself.
-            "sdk_version": TrackingplanManager.sdkVersion,
-            // The rate at which this specific track has been sampled.
-            "sampling_rate": sampleRate,
-            // Debug mode. Makes every request return and console.log the parsed track.
-                "debug": config.debug
-        ]
+        self.provider = provider
+        self.request = TrackingPlanTrackRequest(urlRequest: urlRequest)
+        self.tp_id = config.tp_id
+        self.source_alias = config.sourceAlias
+        self.environment = config.environment
+        self.sdk = TrackingplanManager.sdk
+        self.sdk_version = TrackingplanManager.sdkVersion
+        self.samplingRate = sampleRate
+        self.debug = config.debug
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: TrackKeys.self)
+        self.provider = try container.decode(String.self, forKey: .provider)
+        self.request = try container.decodeIfPresent(TrackingPlanTrackRequest.self, forKey: .request)
+        self.tp_id = try container.decode(String.self, forKey: .tp_id)
+        self.source_alias = try container.decode(String.self, forKey: .source_alias)
+        self.environment = try container.decode(String.self, forKey: .environment)
+        self.sdk_version = try container.decode(String.self, forKey: .sdk_version)
+        self.sdk = try container.decode(String.self, forKey: .sdk)
+        self.samplingRate = try container.decode(Int.self, forKey: .samplingRate)
+        self.debug = try container.decode(Bool.self, forKey: .debug)
+
+    }
+}
+
+
+struct TrackingPlanTrackContext: Codable {
+    enum ContextTrackKeys: String, CodingKey {
+        case appVersionLong
+        case appName
+        case appBuildNumber
+    }
+    
+    let appVersionLong: String
+    let app_name: String
+    let app_build_number: String
+
+    init() {
+        self.appVersionLong = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
+        self.app_name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String
+        self.app_build_number = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
     }
 
-        
+}
+
+public struct TrackingPlanTrackRequest: Codable {
+    enum RequestTrackKeys: String, CodingKey {
+        case endpoint
+        case method
+        case post_payload
+        case post_payload_type
+    }
+    
+    public enum RequestDataType: String, Codable {
+        case string
+        case gzip_base64
+        case unknown
+    }
+    
+    let endpoint: String
+    let method: String?
+    let post_payload: String?
+    var post_payload_type: String = RequestDataType.string.rawValue
+    
+    public init(urlRequest: URLRequest) {
+        // The original provider endpoint URL
+        self.endpoint = urlRequest.url!.absoluteString
+        // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
+        self.method = urlRequest.httpMethod!
+        // The payload, in its original form. If it’s a POST request, the raw payload, if it’s a GET, the querystring (are there other ways?).
+        let requestHttpBody = urlRequest.getHttpBody()
+        self.post_payload = requestHttpBody?.body
+        self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: RequestTrackKeys.self)
+        self.endpoint = try container.decode(String.self, forKey: .endpoint)
+        self.method = try container.decodeIfPresent(String.self, forKey: .method)
+        self.post_payload = try container.decodeIfPresent(String.self, forKey: .post_payload)
+    }
+   
+}
+
+public struct TrackingPlanSampleRate: Codable {
+    var sampleRate: Int
+    var sampleRateTimestamp: TimeInterval
+    func validSampleRate() -> Int {
+        return (TrackingplanConfig.getCurrentTimestamp() < sampleRateTimestamp + 86400) ? self.sampleRate : 0
+    }
 }

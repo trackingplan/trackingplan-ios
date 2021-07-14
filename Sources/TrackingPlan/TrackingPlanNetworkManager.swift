@@ -11,7 +11,7 @@ open class TrackingPlanNetworkManager {
     
     fileprivate let config: TrackingplanConfig
     fileprivate var trackQueue: TrackingPlanQueue = TrackingPlanQueue()
-    
+
     func task() -> URLRequest {
         let url = URL(string: self.config.trackingplanEndpoint)
         var request = URLRequest(url: url!)
@@ -21,24 +21,13 @@ open class TrackingPlanNetworkManager {
     }
     
     fileprivate var didUpdate = false
-    fileprivate let lock = ReadWriteLock(label: "com.trackingPlan.lock")
-    private var trackingQueue: DispatchQueue
+    fileprivate var updatingSampleRate = false
+    fileprivate var trackingQueue: DispatchQueue
 
     init(config: TrackingplanConfig, queue: DispatchQueue) {
         self.config = config
         self.trackingQueue = queue
-    }
-
-    open func archive() {
-        lock.read {
-            self.trackQueue.archive()
-        }
-    }
-
-    open func unarchive() {
-        lock.write {
-            self.trackQueue.unarchive()
-        }
+        retrieveAndSampleRate(completionHandler: { complete in })
     }
     
     open func processRequest(urlRequest: URLRequest) {
@@ -47,67 +36,56 @@ open class TrackingPlanNetworkManager {
             return
         }
         
+        //Sampling
         let sampleRate = self.getSampleRate()
-        if(sampleRate == 0){
-            self.updateSampleRateAndProcessQueue()
+        if(sampleRate == 0){ // sample rate is unknown
+            retrieveForEmptySampleRate() 
+        }else if (self.config.shouldUpdate(rate: sampleRate)) { //Rolling with sampling
+                //Append new tracks and check while timing
+                let track = TrackingPlanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
+                self.trackQueue.enqueue(track)
+                self.didUpdate = true
+                checkAndSend()
         }
-        let rolledDice = (Float(arc4random()) / Float(UInt32.max))
-        let rate = 1 / Float(sampleRate)
-        if(!self.config.ignoreSampling && rolledDice > rate ){
-        }
-        
-        //Append new tracks and check while timing
-        let track = TrackingPlanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
-        self.trackQueue.enqueue(track)
-        self.didUpdate = true
-        checkAndSend()
-        
     }
     
     private func checkAndSend() {
         guard self.trackQueue.taskCount() >= self.config.batchSize else {
             return
         }
-        
         self.didUpdate = false
         trackingQueue.asyncAfter(deadline: TrackingPlanQueue.delay) { [weak self] in
-            guard !(self?.didUpdate ?? true), var request = self?.task(), let rawQueue = self?.trackQueue.retrieveRaw() else {
-                //LOG ERROR
+            guard !(self?.didUpdate ?? true), var request = self?.task(), let rawQueue = self?.trackQueue.retrieveRaw(), !rawQueue.isEmpty else {
                 return
             }
-
+            
             let session = URLSession.shared
             let jsonData = try! JSONSerialization.data(withJSONObject: rawQueue, options: [])
             request.httpBody = jsonData
-            
             let task =  session.dataTask(with: request) {data, response, error in
-                    guard let data = data,
-                            let response = response as? HTTPURLResponse,
-                            error == nil else {
-                                
-                                //LOG ERROR
-
-                            print("error", error ?? "Unknown error")
-                            return
-                        }
-
-                        guard (200 ... 299) ~= response.statusCode else {
-                            
-                            //LOG ERROR
-
-                            print("statusCode should be 2xx, but is \(response.statusCode)")
-                            print("response = \(response)")
-                            return
-                        }
-
-                        let responseString = String(data: data, encoding: .utf8)
-                    print("responseString = \(String(describing: responseString))")
+                guard let data = data,
+                      let response = response as? HTTPURLResponse,
+                      error == nil else {
+                    //LOG ERROR
+                    print("error", error ?? "Unknown error")
+                    return
+                }
+                guard (200 ... 299) ~= response.statusCode else {
+                    //LOG ERROR
+                    print("statusCode should be 2xx, but is \(response.statusCode)")
+                    print("response = \(response)")
+                    return
+                }
+                //Cleanup queue when success only
+                let responseString = String(data: data, encoding: .utf8)
+                self?.trackQueue.cleanUp()
+                print("responseString = \(String(describing: responseString))")
+                
             }
-            
-
             task.resume()
+
+            
         }
-        
     }
     
     private func getAnalyticsProvider(url:String, providerDomains: Dictionary<String, String>) -> String?{
@@ -120,68 +98,67 @@ open class TrackingPlanNetworkManager {
     }
     
     private func setSampleRate(sampleRate: Int){
-        let value = String(sampleRate)+"|"+String(self.getCurrentTS())
-        UserDefaults.standard.set(value, forKey: "trackingplanSampleRate")
+        let sampleData = TrackingPlanSampleRate(
+            sampleRate: sampleRate,
+            sampleRateTimestamp: TrackingplanConfig.getCurrentTimestamp())
+        UserDefaults.standard.encode(for: sampleData, using: UserDefaultKey.sampleRate.rawValue)
+        UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
     }
     
     private func getSampleRate() -> Int{
-        let sampleRateWithTS = UserDefaults.standard.string(forKey: "trackingplanSampleRate")
-        if (sampleRateWithTS == nil){
+        guard let currentSampleRate = UserDefaults.standard.decode(for: TrackingPlanSampleRate.self, using: UserDefaultKey.sampleRate.rawValue) 
+        else {
             return 0
         }
+
+        let sampleRate = currentSampleRate.validSampleRate()
+        return sampleRate
+    }
+
+    func retrieveForEmptySampleRate() {
+        // retry to download config after X seconds
+        let retryDownloadAfterSeconds = 3600
+        if let emptySampleRateTimeStamp = UserDefaultsHelper.getData(type: Int.self, forKey: .sampleRateTimestamp), Int(TrackingplanConfig.getCurrentTimestamp()) - emptySampleRateTimeStamp > retryDownloadAfterSeconds &&  UserDefaultsHelper.getData(type: TrackingPlanSampleRate.self, forKey: .sampleRate) != nil {
+            retrieveAndSampleRate { _ in}
+        } 
+    }
+    
+    func retrieveAndSampleRate(completionHandler:@escaping (Bool)->Void){
         
-        let parts = sampleRateWithTS!.split(separator: "|")
-        let sampleRate = Int(parts[0]) ?? 0
-        let ts = Int(parts[1]) ?? 0
-        let currentTS = self.getCurrentTS()
-        if(ts+86400 > currentTS ){
-            return sampleRate
-        } else {
-            return 0
+        if(self.updatingSampleRate) {
+            return
         }
-    }
-    
-    private func getCurrentTS() -> Int{
-        return Int(round(NSDate().timeIntervalSince1970))
-    }
-    
-    private func getConfigUrl() -> String{
-        return self.config.trackingplanConfigEndpoint + "config-" + self.config.tpId + ".json";
-    }
-    
-    private func updateSampleRateAndProcessQueue(){
-//        self.log(string:"---START UPDATE")
-//        if(self.updatingSampleRate) {
-//            self.log(string:"***ALREADY UPDATING")
-//            return
-//        }
-//        self.updatingSampleRate = true; // TODO: is this shitty lock ok?
-//        let sampleRate = self.getSampleRate()
-//        if(sampleRate == 0) {
-//
-//            let url = URL(string: self.getConfigUrl())!
-//
-//            let task = URLSession.shared.dataTask(with: url) {(data, response, error) in
-//                guard let dataResponse = data,
-//                          error == nil else {
-//                          print(error?.localizedDescription ?? "Response Error")
-//                          return }
-//                    do{
-//                         let json = try JSONSerialization.jsonObject(with: dataResponse
-//                        , options: []) as! [String: Int]
-//                        let sampleRate = Int(json["sample_rate"]!) //Response result
-//                        self.setSampleRate(sampleRate: sampleRate)
-//                        self.updatingSampleRate = false
-//                        self.processQueue()
-//                     } catch let error {
-//                        print("Processing config response error", error)
-//                        self.updatingSampleRate = false
-//                   }
-//
-//
-//
-//            }
-//            task.resume()
-//        }
+        let sampleRate = self.getSampleRate()
+        
+        if(sampleRate == 0) {
+            guard let url = self.config.sampleRateURL() else {
+                return
+            }
+            self.updatingSampleRate = true
+            let task = URLSession.shared.dataTask(with: url) {[weak self](data, response, error) in
+                guard let dataResponse = data,
+                        error == nil else {
+                            print(error?.localizedDescription ?? "Response Error")
+                            return 
+                        }
+                    do {
+                        let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: Int]
+                        let sampleRate = Int(json["sample_rate"]!)
+                        self?.setSampleRate(sampleRate: sampleRate)
+                        self?.updatingSampleRate = false
+                        completionHandler(true)
+
+                    } catch let error {
+                        if let httpResponse = response as? HTTPURLResponse {
+                            Logger.debug(message: TrackingPlanMessage.error(String(httpResponse.statusCode), error.localizedDescription))
+                           }
+
+                        self?.updatingSampleRate = false
+                        UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
+                        completionHandler(false)
+                    }
+            }
+            task.resume()
+        }
     }
 }

@@ -5,7 +5,7 @@
 //
 //  Created by José Luis Pérez on 24/2/21.
 //
-//  Trackingplan(tpId: "zara-ios-test", debug: true).start()
+//  Trackingplan(tp_id: "zara-ios-test", debug: true).start()
 //
 
 import Foundation
@@ -14,7 +14,8 @@ import UIKit
 
 open class TrackingPlan {
     @discardableResult
-    open class func initialize(tpId: String = "",
+    open class func initialize(
+                tpId: String = "",
                 environment: String? = "PRODUCTION",
                 sourceAlias: String? = "",
                 debug: Bool? = false,
@@ -22,40 +23,69 @@ open class TrackingPlan {
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
                 customDomains: Dictionary <String, String>? = [:], 
-                batchSize: Int = 1) -> TrackingPlanInstance {
+                batchSize: Int = 10) -> TrackingPlanInstance {
+
+        print("Hi from TP 0.0.20")
         
-        return TrackingplanManager.sharedInstance.initialize(tpId: tpId, environment: environment, sourceAlias: sourceAlias, debug: debug, trackingplanEndpoint: trackingplanEndpoint, trackingplanConfigEndpoint: trackingplanConfigEndpoint, ignoreSampling: ignoreSampling, customDomains: customDomains, batchSize: batchSize)
+        return TrackingplanManager.sharedInstance.initialize(
+            tp_id: tpId, 
+            environment: environment, 
+            sourceAlias: sourceAlias, 
+            debug: debug, 
+            trackingplanEndpoint: trackingplanEndpoint, 
+            trackingplanConfigEndpoint: trackingplanConfigEndpoint, 
+            ignoreSampling: ignoreSampling, 
+            customDomains: customDomains, 
+            batchSize: batchSize)
     }
 }
 
 
-open class TrackingplanManager: NSObject {
+class TrackingplanManager  {
     public static let sdk = "ios"
     public static let sdkVersion = "0.0.1" // we could get this from the pod.
     
     static let sharedInstance = TrackingplanManager()
-    private var mainInstance: TrackingplanManager?
+    private var mainInstance: TrackingPlanInstance?
+    private var instances: [String: TrackingPlanInstance]
+    private let readWriteLock: ReadWriteLock
     
-    func initialize(tpId: String = "",
-                         environment: String? = "PRODUCTION",
-                         sourceAlias: String? = "",
-                         debug: Bool? = false,
-                         trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
-                         trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
-                         ignoreSampling: Bool? = false,
-                         customDomains: Dictionary <String, String>? = [:], 
-                         batchSize: Int = 1) -> TrackingPlanInstance {
-       
+    init() {
+        instances = [String: TrackingPlanInstance]()
+        readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
+    }
+    
+    func initialize(
+        tp_id: String = "",
+        environment: String? = "PRODUCTION",
+        sourceAlias: String? = "",
+        debug: Bool? = false,
+        trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
+        trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
+        ignoreSampling: Bool? = false,
+        customDomains: Dictionary <String, String>? = [:], 
+        batchSize: Int = 10,
+        instanceName: String? = "default") -> TrackingPlanInstance {
+        
         let providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
-        let config = TrackingplanConfig(tpId: tpId, environment: environment, sourceAlias: sourceAlias, debug: debug, trackingplanEndpoint: trackingplanEndpoint, trackingplanConfigEndpoint: trackingplanConfigEndpoint, ignoreSampling: ignoreSampling, providerDomains: providerDomains, batchSize: batchSize)
-
+        let config = TrackingplanConfig(
+            tp_id: tp_id,
+            environment: environment,
+            sourceAlias: sourceAlias,
+            debug: debug,
+            trackingplanEndpoint: trackingplanEndpoint,
+            trackingplanConfigEndpoint: trackingplanConfigEndpoint,
+            ignoreSampling: ignoreSampling,
+            providerDomains: providerDomains,
+            batchSize: batchSize)
+        
         let instance = TrackingPlanInstance(config: config)
+        mainInstance = instance
+        readWriteLock.write {
+            instances[instanceName ?? "default"] = instance
+        }
         return instance
     }
-
-    
-   
-    
 }
 
 open class TrackingPlanInstance {
@@ -68,15 +98,15 @@ open class TrackingPlanInstance {
     var networkQueue: DispatchQueue!
 
     init(config: TrackingplanConfig) {
-        let label = "com.trackingPlan.\(config.tpId)"
+        let label = "com.trackingPlan.\(config.tp_id)"
         trackingQueue = DispatchQueue(label: "\(label).tracking)", qos: .utility)
         networkQueue = DispatchQueue(label: "\(label).network)", qos: .utility)
         self.requestHandler = TrackingPlanRequestHandler(config: config, queue: trackingQueue)
         self.readWriteLock = ReadWriteLock(label: "com.trackingPlan.globallock")
         self.config = config
-        self.setupObservers()
+        setupObservers()
+        start()
     }
-    
     
     fileprivate func setupObservers() {
         NotificationCenter.default.addObserver(self,
@@ -85,16 +115,12 @@ open class TrackingPlanInstance {
                                        object: nil)
        
         NotificationCenter.default.addObserver(self,
-                                       selector: #selector(applicationDidBecomeActive(_:)),
-                                       name: UIApplication.didBecomeActiveNotification,
-                                       object: nil)
-        NotificationCenter.default.addObserver(self,
-                                       selector: #selector(applicationDidEnterBackground(_:)),
-                                       name: UIApplication.didEnterBackgroundNotification,
+                                       selector: #selector(applicationDidEnterForeground(_:)),
+                                       name: UIApplication.willEnterForegroundNotification,
                                        object: nil)
     }
     
-    public func start(){
+    fileprivate func start(){
         let requestSniffers: [RequestSniffer] = [
             RequestSniffer(requestEvaluator: AnyHttpRequestEvaluator(), handlers: [
                 self.requestHandler
@@ -109,56 +135,49 @@ open class TrackingPlanInstance {
     public func stop(){
         NetworkInterceptor.shared.stopRecording()
     }
-    
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
-
+    
+    
     @discardableResult
     static func sharedUIApplication() -> UIApplication? {
-        guard let sharedApplication = UIApplication.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? UIApplication else {
+        guard let sharedApplication = UIApplication.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? UIApplication 
+        else {
             return nil
         }
         return sharedApplication
     }
     
-    @objc private func applicationDidBecomeActive(_ notification: Notification) {
-        networkQueue.asyncAfter(deadline: DispatchTime.now() + 1) { [weak self] in
-            self?.requestHandler.networkManager.unarchive()
-        }
-    }
-    
-    @objc private func applicationDidEnterBackground(_ notification: Notification) {
-        //Hold for frameworks that take care of it already
-        networkQueue.asyncAfter(deadline: DispatchTime.now() + 1) { [weak self] in
-            self?.requestHandler.networkManager.unarchive()
-
+    @objc private func applicationDidEnterForeground(_ notification: Notification) {
+        networkQueue.async {
+            self.requestHandler.networkManager.retrieveForEmptySampleRate()
         }
     }
     
     @objc private func applicationWillTerminate(_ notification: Notification) {
-        //Hold for frameworks that take care of it already
-        networkQueue.asyncAfter(deadline: DispatchTime.now() + 1) { [weak self] in
-            self?.requestHandler.networkManager.archive()
-        }
+        NotificationCenter.default.post(name: TrackingPlanQueue.archiveNotificationName, object: nil)
     }
    
 
 }
 
-
 private var defaultProviderDomains: Dictionary<String, String> =
     [
+        "app-measurement.com": "googleanalyticsfirebase",
+        "firebaselogging-pa.googleapis.com": "googleanalyticsfirebase",
+        "www.google-analytics.com": "googleanalytics",
+        "ssl.google-analytics.com": "googleanalytics",
         "google-analytics.com": "googleanalytics",
-        "api.segment.com": "segment",
+        "analytics.google.com": "googleanalytics",
         "api.segment.io": "segment",
+        "api.segment.com": "segment",
         "quantserve.com": "quantserve",
-        "intercom.com": "intercom",
-        "amplitude": "amplitude",
-        "appsflyer": "appsflyer",
-        "fullstory": "fullstory",
-        "mixpanel": "mixpanel",
-        "kissmetrics": "kissmetrics",
-        "hull.io": "hull",
-        "hotjar": "hotjar"
+        "api.intercom.io": "intercom",
+        "api.amplitude.com": "amplitude",
+        "ping.chartbeat.net": "chartbeat",
+        "api.mixpanel.com": "mixpanel",
+        "kissmetrics.com": "kissmetrics",
+        "sb.scorecardresearch.com": "scorecardresearch"
     ]

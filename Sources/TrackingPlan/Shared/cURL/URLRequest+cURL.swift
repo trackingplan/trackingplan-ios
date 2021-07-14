@@ -62,29 +62,25 @@ extension URLRequest {
         }
         if let contentType = self.allHTTPHeaderFields?["Content-Type"],
             contentType == "application/json",
-            let jsonObject = self.convertToJsonObject(text: httpBodyString),
+            let jsonObject = self.convertToJsonObject(text: httpBodyString.body ?? ""),
             let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: self.jsonWriteOptions()),
             let jsonString = String(data: jsonData, encoding: .utf8) {
             
-            httpBodyString = jsonString
+            httpBodyString.body = jsonString
         }
-        return "-d '\(httpBodyString)'"
+        return "-d '\(httpBodyString.body ?? "")'"
     }
     
     fileprivate func jsonWriteOptions() -> JSONSerialization.WritingOptions {
         if #available(iOS 11.0, *) {
-            if #available(OSX 10.13, *) {
-                return [.sortedKeys, .prettyPrinted]
-            } else {
-                // Fallback on earlier versions
-            }
+            return [.sortedKeys, .prettyPrinted]
         }
         return .prettyPrinted
     }
     
-    public func getHttpBodyString() -> String? {
+    public func getHttpBodyString() -> TrackHTTPBody? {
         if let httpBodyString = self.getHttpBodyStream() {
-            return httpBodyString
+            return (httpBodyString, .string)
         }
         if let httpBodyString = self.getHttpBody() {
             return httpBodyString
@@ -118,23 +114,49 @@ extension URLRequest {
         return NSString(data: data as Data, encoding: String.Encoding.utf8.rawValue) as String?
     }
     
-    public func getHttpBody() -> String? {
+    
+    public typealias TrackHTTPBody = (body: String? , dataType: TrackingPlanTrackRequest.RequestDataType)
+    
+    public func getHttpBody() -> TrackHTTPBody? {
         guard let httpBody = self.httpBody, httpBody.count > 0 else {
             return nil
         }
-        guard let httpBodyString = self.getStringFromHttpBody(httpBody: httpBody) else {
+        guard let httpBodyString = self.getStringFromHttpBody(httpBody: httpBody), let body = httpBodyString.body else {
             return nil
         }
-        let escapedHttpBody = self.escapeAllSingleQuotes(httpBodyString)
-        return escapedHttpBody
+        let escapedHttpBody = self.escapeAllSingleQuotes(body)
+        return (escapedHttpBody, httpBodyString.dataType)
     }
     
-    fileprivate func getStringFromHttpBody(httpBody: Data) -> String? {
+    fileprivate func getStringFromHttpBody(httpBody: Data) -> TrackHTTPBody? {
+        if httpBody.isGzipped {
+            do {
+                //Gzip string
+                let gziped = try httpBody.gunzipped()
+                let gzipedString = String(data: gziped, encoding: .utf8)
+                if gzipedString?.isEmpty ?? true || gzipedString == nil {
+                    //Base 64 string
+                    let base64 = httpBody.base64EncodedString()
+                    if !base64.isEmpty {
+                        return (base64, .gzip_base64)
+                    }
+                } else {
+                    return (gzipedString, .string)
+                }
+            } catch (_) {
+                if let httpBodyString = String(data: httpBody, encoding: String.Encoding.utf8) {
+                    return (httpBodyString, .string)
+                } else {
+                    return ("", .unknown)
+                }
+            }
+        }
         
         if let httpBodyString = String(data: httpBody, encoding: String.Encoding.utf8) {
-            return httpBodyString
+            return (httpBodyString, .string)
         }
-        return nil
+        
+        return ("", .unknown)
     }
     
     fileprivate func escapeAllSingleQuotes(_ value: String) -> String {
