@@ -16,15 +16,18 @@ public struct TrackingplanConfig {
     var trackingplanConfigEndpoint: String
     var ignoreSampling: Bool
     var providerDomains: Dictionary <String, String>
-    
-    public init(tpId: String? = "",
+    var batchSize: Int
+}
+extension TrackingplanConfig {
+    init(tpId: String? = "",
                 environment: String? = "PRODUCTION",
                 sourceAlias: String? = "",
                 debug: Bool? = false,
                 trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
-                providerDomains: Dictionary <String, String>? = [:]
+                providerDomains: Dictionary <String, String>? = [:], 
+                batchSize: Int = 1
     ){
         self.tpId = tpId!
         self.environment = environment!
@@ -34,7 +37,6 @@ public struct TrackingplanConfig {
         self.trackingplanConfigEndpoint = trackingplanConfigEndpoint!
         self.ignoreSampling = ignoreSampling!
         self.providerDomains = providerDomains!
-        
+        self.batchSize = batchSize
     }
-    
 }
