@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name              = 'Trackingplan'
-  s.version           = '0.1.1'
+  s.version           = '1.0.19'
   s.summary           = 'Trackingplan iOS SDK'
   s.homepage          = 'https://github.com/trackingplan/trackingplan-ios'
   s.platform = :ios, '12.0'
@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   :file => 'LICENSE'
   }
   s.author            = {
-  'Jose Luis Perez' => 'joseleperezgonzalez@trackingplan.com'
+  'Trackingplan Inc' => 'team@trackingplan.com'
   }
   s.source            = {
   :git => 'https://github.com/trackingplan/trackingplan-ios.git',
