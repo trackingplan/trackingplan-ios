@@ -1,5 +1,7 @@
 # Trackingplan for iOS SDK
 
+Version 1.0.19
+
 With Trackingplan for iOS you can make sure that your tracking is going as you planned without changing your current analytics stack or code. 
 
 Trackingplan will monitor traffic between your app and data destinations and automatically detect any changes in your analytics implementation and warn you about inconsistencies like hit drops, missing properties, rogue events, and more.
