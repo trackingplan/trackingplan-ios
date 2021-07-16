@@ -114,7 +114,7 @@ Questions? Problems? Need more info? Contact us, and we can help!
 
 ## Learn more
 
-www.trackingplan.com 
+Visit www.trackingplan.com.
 
 Let us know if we can help team@trackingplan.com.
 
