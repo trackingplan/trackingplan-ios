@@ -9,7 +9,7 @@ import Foundation
 
 
 //TODO: Error type management
-enum TrackingPlanError: Error {
+enum TrackingplanError: Error {
     case tokenExpired
     case tokenInvalid
     case debugError(String, Error)
@@ -20,7 +20,7 @@ enum TrackingPlanError: Error {
     }
 }
 
-enum TrackingPlanMessage{
+enum TrackingplanMessage{
     case message(String)
     case error(String, String)
     case success

@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "TrackingPlan",
+    name: "Trackingplan",
     platforms: [
             .iOS(.v12)
        ],
@@ -12,8 +12,8 @@ let package = Package(
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
-            name: "TrackingPlan",
-            targets: ["TrackingPlan"]),
+            name: "Trackingplan",
+            targets: ["Trackingplan"]),
         
     ],
     dependencies: [
@@ -24,10 +24,10 @@ let package = Package(
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
-            name: "TrackingPlan",
+            name: "Trackingplan",
             dependencies: []),
         .testTarget(
-            name: "TrackingPlanTests",
-            dependencies: ["TrackingPlan"]),
+            name: "TrackingplanTests",
+            dependencies: ["Trackingplan"]),
     ]
 )

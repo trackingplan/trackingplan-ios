@@ -1,7 +1,7 @@
     import XCTest
-    @testable import TrackingPlan
+    @testable import Trackingplan
 
-    final class TrackingPlanTests: XCTestCase {
+    final class TrackingplanTests: XCTestCase {
         func testExample() {
         }
     }

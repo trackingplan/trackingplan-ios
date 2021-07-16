@@ -8,7 +8,7 @@
 import Foundation
 import os.log
 
-typealias Logger = TrackingPlanLogging
+typealias Logger = TrackingplanLogging
 
 //TODO: Unified Logging
 extension OSLog {
@@ -16,8 +16,8 @@ extension OSLog {
     static let sniffLog = OSLog(subsystem: subsystem, category: "sniffing")
 }
 
-struct TrackingPlanLogging {
-    static func log(error: TrackingPlanError) {
+struct TrackingplanLogging {
+    static func log(error: TrackingplanError) {
         switch error {
         case .debugError(_, _):
             os_log("", log: OSLog.sniffLog, type: .error)
@@ -27,7 +27,7 @@ struct TrackingPlanLogging {
         }
     }
     
-    static func debug(message: TrackingPlanMessage) {
+    static func debug(message: TrackingplanMessage) {
         #if DEBUG
         switch message {
         case .error(let code, let message):

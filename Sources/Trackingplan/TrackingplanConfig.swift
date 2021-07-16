@@ -24,16 +24,20 @@ public struct TrackingplanConfig {
 //Basic convenience init and sample rate
 
 extension TrackingplanConfig {
-    init(tp_id: String? = "",
+        
+    static let defaulBatchSize = 10
+    static let tpEndpoint = "https://tracks.trackingplan.com/"
+    static let tpConfigEndpoint = "https://config.trackingplan.com/"
+    init(tp_id: String,
                 environment: String? = "PRODUCTION",
                 sourceAlias: String? = "",
                 debug: Bool? = false,
-                trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
-                trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
+                trackingplanEndpoint: String? = TrackingplanConfig.tpEndpoint,
+                trackingplanConfigEndpoint: String? = TrackingplanConfig.tpConfigEndpoint,
                 ignoreSampling: Bool? = false,
                 providerDomains: Dictionary <String, String>? = [:], batchSize: Int = 10
     ){
-        self.tp_id = tp_id!
+        self.tp_id = tp_id
         self.environment = environment!
         self.sourceAlias = sourceAlias!
         self.debug = debug!
@@ -42,6 +46,19 @@ extension TrackingplanConfig {
         self.ignoreSampling = ignoreSampling!
         self.providerDomains = providerDomains!
         self.batchSize = batchSize
+    }
+    
+    
+    init(tp_id: String, providerDomains: Dictionary<String, String>? = [:]) {
+        self.tp_id = tp_id
+        self.environment = "PRODUCTION"
+        self.sourceAlias = ""
+        self.debug = false
+        self.trackingplanEndpoint = TrackingplanConfig.tpEndpoint
+        self.trackingplanConfigEndpoint = TrackingplanConfig.tpConfigEndpoint
+        self.ignoreSampling = false
+        self.providerDomains = providerDomains!
+        self.batchSize = 10
     }
     
     static func getCurrentTimestamp() -> TimeInterval {
@@ -60,11 +77,11 @@ extension TrackingplanConfig {
         //Grab last date value
         if let lastDate = UserDefaultsHelper.getData(type: TimeInterval.self, forKey: .rolledDicedate) {
             if TrackingplanConfig.getCurrentTimestamp() > lastDate + 86400 {
-                //Logger.debug(message: TrackingPlanMessage.message("\(String(describing: TrackingplanConfig.self)) Reset roll dice - last timestamp: \(lastDate)"))
+                //Logger.debug(message: TrackingplanMessage.message("\(String(describing: TrackingplanConfig.self)) Reset roll dice - last timestamp: \(lastDate)"))
                 return setRandomValue(rate: rate)
             } else {
                 let currentValue = UserDefaultsHelper.getData(type: Bool.self, forKey: .rolledDicedate) ?? true
-                //Logger.debug(message: TrackingPlanMessage.message("Using existing rolling value: \(currentValue) "))
+                //Logger.debug(message: TrackingplanMessage.message("Using existing rolling value: \(currentValue) "))
                 return currentValue
 
             }
@@ -79,11 +96,11 @@ extension TrackingplanConfig {
       
         let newTs = TrackingplanConfig.getCurrentTimestamp()
         UserDefaultsHelper.setData(value: newTs, key: .rolledDicedate)
-        //Logger.debug(message: TrackingPlanMessage.message("Rolled new timestamp: \(newTs) "))
+        //Logger.debug(message: TrackingplanMessage.message("Rolled new timestamp: \(newTs) "))
 
         let rolled = sampleInitialValue < (1 / Float(rate))
         UserDefaultsHelper.setData(value: rolled, key: .rolleDiceValue)
-        //Logger.debug(message: TrackingPlanMessage.message("Rolled new value: \(rolled) "))
+        //Logger.debug(message: TrackingplanMessage.message("Rolled new value: \(rolled) "))
 
         return rolled
     }

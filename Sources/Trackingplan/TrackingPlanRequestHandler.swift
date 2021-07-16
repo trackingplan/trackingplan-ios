@@ -1,21 +1,20 @@
 //
-//  TrackingPlanRequestHandler.swift
+//  TrackingplanRequestHandler.swift
 //  Trackingplan
-//
 //
 //  Created by José Luis Pérez on 24/2/21.
 //
 
 import Foundation
 
-public class TrackingPlanRequestHandler: SniffableRequestHandler {
+class TrackingplanRequestHandler: SniffableRequestHandler {
     private var config: TrackingplanConfig
     private var updatingSampleRate = false
-    let networkManager: TrackingPlanNetworkManager
+    let networkManager: TrackingplanNetworkManager
    
     public init(config: TrackingplanConfig, queue: DispatchQueue){
         self.config = config
-        self.networkManager = TrackingPlanNetworkManager(config: config, queue: queue)
+        self.networkManager = TrackingplanNetworkManager(config: config, queue: queue)
     }
     
     public func sniffRequest(urlRequest: URLRequest) {

@@ -1,5 +1,6 @@
 //
-//  File.swift
+//  TrackingplanTrack.swift
+//  Trackingplan
 //  
 //
 //  Created by Juan Pedro Lozano Baño on 5/7/21.
@@ -8,30 +9,32 @@
 import Foundation
 
 
-public class TrackingPlanQueue {
+class TrackingplanQueue {
+    
     static let delay: DispatchTime = DispatchTime.now() + 0.25
-    static let archiveNotificationName = Notification.Name("on-selected-skin")
+    static let ArchiveNotificationName = Notification.Name("com.trackingplan.archive")
     static let defaultArchiveKey = "com.trackingplan.store"
-    static let archiveKey = "trackingPlanQueue"
-    private var storage: [TrackingPlanTrack]
-    let readWriteLock = ReadWriteLock(label: "com.trackingPlan.globallock")
+    static let archiveKey = "trackingplanQueue"
+    
+    private var storage: [TrackingplanTrack]
+    let readWriteLock = ReadWriteLock(label: "com.trackingplan.globallock")
 
     fileprivate let validArchive: Bool = {
-        //Check is last archive tracks ar older than 24h
+        //Check is last archive tracks ar older than 20 min
         if let lastUnarchiveDate = UserDefaultsHelper.getData(type: Int.self, forKey: .lastArchivedDate) {
-            return Int(TrackingplanConfig.getCurrentTimestamp())  < lastUnarchiveDate + 86400
+            return Int(TrackingplanConfig.getCurrentTimestamp())  < lastUnarchiveDate + 1200
         }
         return false
     }()
 
     init()
     {
-        self.storage = [TrackingPlanTrack]()
+        self.storage = [TrackingplanTrack]()
         //Build previous storage
         unarchive()
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(archive),
-                                               name: TrackingPlanQueue.archiveNotificationName,
+                                               name: TrackingplanQueue.ArchiveNotificationName,
                                        object: nil)
     }
     
@@ -39,7 +42,7 @@ public class TrackingPlanQueue {
     func taskCount() -> Int {
         return self.storage.count
     }
-    func enqueue(_ element: TrackingPlanTrack) -> Void
+    func enqueue(_ element: TrackingplanTrack) -> Void
     {
         self.readWriteLock.write {
             self.storage.append(element)
@@ -47,7 +50,7 @@ public class TrackingPlanQueue {
         }
     }
 
-    func dequeue() -> TrackingPlanTrack?
+    func dequeue() -> TrackingplanTrack?
     {
         return self.storage.removeFirst()
     }
@@ -55,22 +58,22 @@ public class TrackingPlanQueue {
     
     @objc func archive() {
         //Archive tracks
-        UserDefaults.standard.encode(for: self.storage, using: TrackingPlanQueue.defaultArchiveKey)
+        UserDefaults.standard.encode(for: self.storage, using: TrackingplanQueue.defaultArchiveKey)
         //Save timestamp for archive
         UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .lastArchivedDate)
-        Logger.debug(message: TrackingPlanMessage.message("Storage archive success count: \(self.storage.count) "))
+        Logger.debug(message: TrackingplanMessage.message("Storage archive success count: \(self.storage.count) "))
 
     }
     
     public func unarchive() {
-        guard let tracksArray = UserDefaults.standard.decode(for: [TrackingPlanTrack].self, using: TrackingPlanQueue.defaultArchiveKey), validArchive else {
+        guard let tracksArray = UserDefaults.standard.decode(for: [TrackingplanTrack].self, using: TrackingplanQueue.defaultArchiveKey), validArchive else {
             return
         }
         
-        Logger.debug(message: TrackingPlanMessage.message("Storage unarchive success count: \(tracksArray.count) "))
+        Logger.debug(message: TrackingplanMessage.message("Storage unarchive success count: \(tracksArray.count) "))
         self.storage.append(contentsOf:tracksArray)
         //Cleanup Tracks archive
-        UserDefaults.standard.setValue(nil, forKey: TrackingPlanQueue.defaultArchiveKey)
+        UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)
         //Remove timestamp for archived tracks
         UserDefaultsHelper.removeData(key: .lastArchivedDate)
 
@@ -85,13 +88,13 @@ public class TrackingPlanQueue {
             self.storage.removeAll()
 
         }
-        UserDefaults.standard.setValue(nil, forKey: TrackingPlanQueue.defaultArchiveKey)
+        UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)
     }
 }
 
 
 
-struct TrackingPlanTrack: Codable {
+struct TrackingplanTrack: Codable {
     enum TrackKeys: String, CodingKey {
         case provider
         case request
@@ -106,8 +109,8 @@ struct TrackingPlanTrack: Codable {
     }
     
     let provider: String
-    let request: TrackingPlanTrackRequest?
-    let context = TrackingPlanTrackContext()
+    let request: TrackingplanTrackRequest?
+    let context = TrackingplanTrackContext()
     let tp_id: String
     let source_alias: String
     let environment: String
@@ -118,7 +121,7 @@ struct TrackingPlanTrack: Codable {
     
     init (urlRequest: URLRequest, provider: String, sampleRate: Int, config: TrackingplanConfig) {
         self.provider = provider
-        self.request = TrackingPlanTrackRequest(urlRequest: urlRequest)
+        self.request = TrackingplanTrackRequest(urlRequest: urlRequest)
         self.tp_id = config.tp_id
         self.source_alias = config.sourceAlias
         self.environment = config.environment
@@ -131,7 +134,7 @@ struct TrackingPlanTrack: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: TrackKeys.self)
         self.provider = try container.decode(String.self, forKey: .provider)
-        self.request = try container.decodeIfPresent(TrackingPlanTrackRequest.self, forKey: .request)
+        self.request = try container.decodeIfPresent(TrackingplanTrackRequest.self, forKey: .request)
         self.tp_id = try container.decode(String.self, forKey: .tp_id)
         self.source_alias = try container.decode(String.self, forKey: .source_alias)
         self.environment = try container.decode(String.self, forKey: .environment)
@@ -144,7 +147,7 @@ struct TrackingPlanTrack: Codable {
 }
 
 
-struct TrackingPlanTrackContext: Codable {
+struct TrackingplanTrackContext: Codable {
     enum ContextTrackKeys: String, CodingKey {
         case appVersionLong
         case appName
@@ -163,7 +166,7 @@ struct TrackingPlanTrackContext: Codable {
 
 }
 
-public struct TrackingPlanTrackRequest: Codable {
+struct TrackingplanTrackRequest: Codable {
     enum RequestTrackKeys: String, CodingKey {
         case endpoint
         case method
@@ -182,7 +185,7 @@ public struct TrackingPlanTrackRequest: Codable {
     let post_payload: String?
     var post_payload_type: String = RequestDataType.string.rawValue
     
-    public init(urlRequest: URLRequest) {
+    init(urlRequest: URLRequest) {
         // The original provider endpoint URL
         self.endpoint = urlRequest.url!.absoluteString
         // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
@@ -193,7 +196,7 @@ public struct TrackingPlanTrackRequest: Codable {
         self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
     }
     
-    public init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: RequestTrackKeys.self)
         self.endpoint = try container.decode(String.self, forKey: .endpoint)
         self.method = try container.decodeIfPresent(String.self, forKey: .method)
@@ -202,7 +205,7 @@ public struct TrackingPlanTrackRequest: Codable {
    
 }
 
-public struct TrackingPlanSampleRate: Codable {
+struct TrackingplanSampleRate: Codable {
     var sampleRate: Int
     var sampleRateTimestamp: TimeInterval
     func validSampleRate() -> Int {

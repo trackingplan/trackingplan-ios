@@ -78,7 +78,7 @@ extension URLRequest {
         return .prettyPrinted
     }
     
-    public func getHttpBodyString() -> TrackHTTPBody? {
+    func getHttpBodyString() -> TrackHTTPBody? {
         if let httpBodyString = self.getHttpBodyStream() {
             return (httpBodyString, .string)
         }
@@ -115,9 +115,9 @@ extension URLRequest {
     }
     
     
-    public typealias TrackHTTPBody = (body: String? , dataType: TrackingPlanTrackRequest.RequestDataType)
+    typealias TrackHTTPBody = (body: String? , dataType: TrackingplanTrackRequest.RequestDataType)
     
-    public func getHttpBody() -> TrackHTTPBody? {
+    func getHttpBody() -> TrackHTTPBody? {
         guard let httpBody = self.httpBody, httpBody.count > 0 else {
             return nil
         }
@@ -168,7 +168,7 @@ extension URLRequest {
             do {
                 return try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
             } catch {
-                print(error.localizedDescription)
+                // print(error.localizedDescription)
             }
         }
         return nil
