@@ -111,8 +111,11 @@ All set!
 ## Need help?
 Questions? Problems? Need more info? Contact us, and we can help!
 
-## Contact
 
-team@trackingplan.com
+## Learn more
+
+www.trackingplan.com 
+
+Let us know if we can help team@trackingplan.com.
 
 Copyright © 2021 Trackingplan Inc. All Rights Reserved.
