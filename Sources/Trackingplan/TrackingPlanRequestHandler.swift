@@ -2,8 +2,6 @@
 //  TrackingplanRequestHandler.swift
 //  Trackingplan
 //
-//  Created by José Luis Pérez on 24/2/21.
-//
 
 import Foundation
 

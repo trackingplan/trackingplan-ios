@@ -1,9 +1,6 @@
 //
 //  TrackingplanTrack.swift
 //  Trackingplan
-//  
-//
-//  Created by Juan Pedro Lozano Baño on 5/7/21.
 //
 
 import Foundation

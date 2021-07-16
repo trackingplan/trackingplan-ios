@@ -2,9 +2,6 @@
 //  URLRequest+cURL.swift
 //  URLRequest-cURL
 //
-//  Created by Kenneth Poon on 1/1/19.
-//  Copyright © 2019 Kenneth Poon. All rights reserved.
-//
 
 import Foundation
 

@@ -1,8 +1,6 @@
 //
 //  Encodable+Extension.swift
-//  
-//
-//  Created by Juan Pedro Lozano Baño on 7/7/21.
+//  Trackingplan
 //
 
 import Foundation

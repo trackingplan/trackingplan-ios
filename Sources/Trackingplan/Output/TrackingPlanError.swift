@@ -1,12 +1,10 @@
 //
-//  File.swift
-//  
+//  TrackingplanError.swift
+//  Trackingplan
 //
-//  Created by Juan Pedro Lozano Baño on 13/6/21.
-//
+
 
 import Foundation
-
 
 //TODO: Error type management
 enum TrackingplanError: Error {

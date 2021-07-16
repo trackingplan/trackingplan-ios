@@ -1,9 +1,8 @@
 //
-//  File.swift
-//  
+//  TrackingplanLog.swift
+//  Trackingplan
 //
-//  Created by Juan Pedro Lozano Baño on 13/6/21.
-//
+
 
 import Foundation
 import os.log
