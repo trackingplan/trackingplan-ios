@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name              = 'Trackingplan'
-  s.version           = '1.0.19'
+  s.version           = '1.0.20'
   s.summary           = 'Trackingplan iOS SDK'
   s.homepage          = 'https://github.com/trackingplan/trackingplan-ios'
   s.platform = :ios, '12.0'
@@ -15,5 +15,5 @@ Pod::Spec.new do |s|
   :git => 'https://github.com/trackingplan/trackingplan-ios.git',
   :tag => "#{s.version}" }
   s.requires_arc      = true
-  s.source_files = 'Sources/**/*'
+  s.source_files = 'Trackingplan/Sources/**/*'
 end
