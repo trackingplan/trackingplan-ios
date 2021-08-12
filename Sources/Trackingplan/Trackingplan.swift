@@ -32,11 +32,11 @@ open class Trackingplan {
                 tpId: String = "",
                 environment: String? = "PRODUCTION",
                 sourceAlias: String? = "",
+                customDomains: Dictionary <String, String>? = [:],
                 debug: Bool? = false,
                 trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
-                customDomains: Dictionary <String, String>? = [:],
                 batchSize: Int = 10) -> TrackingplanInstance {
         
         return TrackingplanManager.sharedInstance.initialize(
