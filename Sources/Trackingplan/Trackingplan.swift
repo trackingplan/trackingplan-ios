@@ -54,7 +54,7 @@ class TrackingplanManager  {
         instances = [String: TrackingplanInstance]()
         readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
     }
-    /*
+    /**
         Use this method to initialize Trackingplan SDK. 
         
         In your application delegate’s - application(_:didFinishLaunchingWithOptions:) method, 
