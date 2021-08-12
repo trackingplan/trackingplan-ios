@@ -15,5 +15,5 @@ Pod::Spec.new do |s|
   :git => 'https://github.com/trackingplan/trackingplan-ios.git',
   :tag => "#{s.version}" }
   s.requires_arc      = true
-  s.source_files = 'Trackingplan/Sources/**/*'
+  s.source_files = 'Sources/**/*'
 end
