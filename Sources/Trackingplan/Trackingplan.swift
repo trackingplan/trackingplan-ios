@@ -13,6 +13,20 @@ import UIKit
 
 
 open class Trackingplan {
+    /**
+    Initializes and configures Trackingplan SDK. You only need to call this method once from application delegate’s method.
+
+    - Parameters:
+       - tpId: an id provided by Trackingplan which identifies your company trackingplan.
+       - customDomains: allows to extend the list of monitored domains. Any request made to these domains will also be forwarded to Trackingplan. The format is {"myAnalyticsDomain.com": "myAnalytics"}, where you put, respectively, the domain to be looked for and the alias you want to use for that analytics domain. Default: {}. Example: {"mixpanel.com": "Mixpanel"}.
+       - environment: allows to isolate the data between production and testing environments. Default: PRODUCTION. Example: DEV.
+       - sourceAlias: allows to differentiate between sources. Default: iOS. Example: iOS App.
+       - debug: shows Trackingplan debugging information in the console. Default: false. Example: true.
+       - batchSize: for internal use only, please let us know if you need to change this value.
+       - trackingplanEndpoint: for internal use only, please let us know if you need to change this value.
+       - trackingplanConfigEndpoint: for internal use only, please let us know if you need to change this value.
+       - ignoreSampling: for internal use only, please let us know if you need to change this value.
+    */
     @discardableResult
     open class func initialize(
                 tpId: String = "",
@@ -54,39 +68,6 @@ class TrackingplanManager  {
         instances = [String: TrackingplanInstance]()
         readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
     }
-    /**
-        Use this method to initialize Trackingplan SDK. 
-        
-        In your application delegate’s - application(_:didFinishLaunchingWithOptions:) method, 
-        set up the SDK like so:
-
-        //
-        //  AppDelegate.swift
-        //  ...
-
-        func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-                // Override point for customization after application launch.
-                
-                // Initialize Trackingplan SDK
-                TrackingPlan.initialize(tpId: "#YourTrackingplanId")
-                
-                return true
-        }
-
-        And of course, import the SDK:
-
-        //
-        //  AppDelegate.swift
-        //  ...
-
-        import TrackingPlan
-
-        Use the following parameters:
-
-        - Parameters:
-            - tpId: your trackingplan id which identifies 
-
-    */
     func initialize(
         tp_id: String = "",
         environment: String? = "PRODUCTION",
