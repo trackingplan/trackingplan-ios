@@ -54,7 +54,39 @@ class TrackingplanManager  {
         instances = [String: TrackingplanInstance]()
         readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
     }
-    
+    /*
+        Use this method to initialize Trackingplan SDK. 
+        
+        In your application delegate’s - application(_:didFinishLaunchingWithOptions:) method, 
+        set up the SDK like so:
+
+        //
+        //  AppDelegate.swift
+        //  ...
+
+        func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+                // Override point for customization after application launch.
+                
+                // Initialize Trackingplan SDK
+                TrackingPlan.initialize(tpId: "#YourTrackingplanId")
+                
+                return true
+        }
+
+        And of course, import the SDK:
+
+        //
+        //  AppDelegate.swift
+        //  ...
+
+        import TrackingPlan
+
+        Use the following parameters:
+
+        - Parameters:
+            - tpId: your trackingplan id which identifies 
+
+    */
     func initialize(
         tp_id: String = "",
         environment: String? = "PRODUCTION",
