@@ -67,9 +67,11 @@ class TrackingplanManager  {
         batchSize: Int = 10,
         instanceName: String? = "default") -> TrackingplanInstance {
         
-        var providerDomains = defaultProviderDomains
+        
         if(customDomains != nil){
-            providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
+            let providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
+        }else{
+            let providerDomains = defaultProviderDomains
         }
         
         let config = TrackingplanConfig(
