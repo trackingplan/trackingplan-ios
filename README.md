@@ -1,4 +1,4 @@
-# Trackingplan for iOS SDK
+# Trackingplan iOS SDK
 
 With Trackingplan for iOS you can make sure that your tracking is going as you planned without changing your current analytics stack or code. 
 
