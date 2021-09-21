@@ -109,11 +109,12 @@ import TrackingPlan
 All set!
 
 ## Need help?
-Questions? Problems? Need more info? Contact us, and we can help!
+Questions? Problems? Need more info? We can help! Contact us [here](mailto:team@trackingplan.com).
 
 
 ## Learn more
+Visit www.trackingplan.com
 
-Visit www.trackingplan.com.
 
+## License
 Copyright © 2021 Trackingplan Inc. All Rights Reserved.
