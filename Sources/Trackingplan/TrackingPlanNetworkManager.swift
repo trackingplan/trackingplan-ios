@@ -141,13 +141,19 @@ class TrackingplanNetworkManager {
                             return 
                         }
                     do {
-                        let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: Int]
-                        let sampleRate = 0 // unkonwn
-                        if (self.config.environment != nil) {
-                            sampleRate = Int(json["environment_rates"][self.config.environment]!)
+                        let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: AnyObject]
+                        let environment = self?.config.environment ?? "" as String
+                        var sampleRate = 0
+                        
+                        if (environment != "") {
+                            let environment_rates = json["environment_rates"] as? [String:Int]
+                            sampleRate = environment_rates?[environment] ?? 0
                         }else{
-                            sampleRate = Int(json["sample_rate"]!)
+                            if let sampleRateAux = json["sample_rate"] as? Int{
+                                sampleRate = sampleRateAux
+                            }
                         }
+                        
                         self?.setSampleRate(sampleRate: sampleRate)
                         self?.updatingSampleRate = false
                         completionHandler(true)
