@@ -202,6 +202,7 @@ private var defaultProviderDomains: Dictionary<String, String> =
         "segment-api": "segment",
         // "/.*api\-iam\.intercom\.io\/messenger\/web\/(ping|events|metrics|open).*/": "intercom",
         "api.amplitude.com": "amplitude",
+        "api2.amplitude.com": "amplitude",
         "ping.chartbeat.net": "chartbeat",
         // "/.*api(-eu)?(-js)?.mixpanel\.com.*/": "mixpanel",
         "trk.kissmetrics.io": "kissmetrics",
@@ -223,5 +224,6 @@ private var defaultProviderDomains: Dictionary<String, String> =
         "px.ads.linkedin.com": "linkedin",
         "/i/adsct": "twitter",
         "bat.bing.com": "bing",
-        "pdst.fm": "podsights"
+        "pdst.fm": "podsights",
+        "app-measurement.com": "googleanalyticsfirebase"
     ]
