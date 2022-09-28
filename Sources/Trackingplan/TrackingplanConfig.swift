@@ -74,12 +74,12 @@ extension TrackingplanConfig {
 extension TrackingplanConfig {
     public func shouldUpdate(rate: Int) -> Bool {
         //Grab last date value
-        if let lastDate = UserDefaultsHelper.getData(type: TimeInterval.self, forKey: .rolledDicedate) {
+        if let lastDate = UserDefaultsHelper.getData(type: TimeInterval.self, forKey: .rolledDiceDate) {
             if TrackingplanConfig.getCurrentTimestamp() > lastDate + 86400 {
                 //Logger.debug(message: TrackingplanMessage.message("\(String(describing: TrackingplanConfig.self)) Reset roll dice - last timestamp: \(lastDate)"))
                 return setRandomValue(rate: rate)
             } else {
-                let currentValue = UserDefaultsHelper.getData(type: Bool.self, forKey: .rolledDicedate) ?? true
+                let currentValue = UserDefaultsHelper.getData(type: Bool.self, forKey: .rolledDiceDate) ?? true
                 //Logger.debug(message: TrackingplanMessage.message("Using existing rolling value: \(currentValue) "))
                 return currentValue
 
@@ -94,7 +94,7 @@ extension TrackingplanConfig {
         let sampleInitialValue = self.ignoreSampling ? 0.0 : (Float(arc4random()) / Float(UInt32.max))
       
         let newTs = TrackingplanConfig.getCurrentTimestamp()
-        UserDefaultsHelper.setData(value: newTs, key: .rolledDicedate)
+        UserDefaultsHelper.setData(value: newTs, key: .rolledDiceDate)
         //Logger.debug(message: TrackingplanMessage.message("Rolled new timestamp: \(newTs) "))
 
         let rolled = sampleInitialValue < (1 / Float(rate))

@@ -29,5 +29,7 @@ let package = Package(
         .testTarget(
             name: "TrackingplanTests",
             dependencies: ["Trackingplan"]),
-    ]
+    ],
+        swiftLanguageVersions: [.v5]
+
 )

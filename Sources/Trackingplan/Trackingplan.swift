@@ -126,6 +126,7 @@ open class TrackingplanInstance {
     }
     
     fileprivate func setupObservers() {
+        
         NotificationCenter.default.addObserver(self,
                                        selector: #selector(applicationWillTerminate(_:)),
                                        name: UIApplication.willTerminateNotification,

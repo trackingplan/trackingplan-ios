@@ -9,7 +9,7 @@ enum UserDefaultKey: String, CaseIterable {
     case sampleRate
     case sampleRateTimestamp
     case rolleDiceValue
-    case rolledDicedate
+    case rolledDiceDate
     case lastArchivedDate
     case debug
 }

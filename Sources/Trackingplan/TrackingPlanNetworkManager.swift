@@ -64,21 +64,21 @@ class TrackingplanNetworkManager {
             let jsonData = try! JSONSerialization.data(withJSONObject: rawQueue, options: [])
             request.httpBody = jsonData
             let task =  session.dataTask(with: request) {data, response, error in
-                guard let data = data,
-                      let response = response as? HTTPURLResponse,
-                      error == nil else {
+               // guard let data = data,
+               //       let response = response as? HTTPURLResponse,
+               //       error == nil else {
                     //LOG ERROR
                     // print("error", error ?? "Unknown error")
-                    return
-                }
-                guard (200 ... 299) ~= response.statusCode else {
+                //    return
+                //}
+                //guard (200 ... 299) ~= response.statusCode else {
                     //LOG ERROR
                     // print("statusCode should be 2xx, but is \(response.statusCode)")
                     // print("response = \(response)")
-                    return
-                }
+                //    return
+                //}
                 //Cleanup queue when success only
-                let responseString = String(data: data, encoding: .utf8)
+               // let responseString = String(data: data, encoding: .utf8)
                 self?.trackQueue.cleanUp()
                 // print("responseString = \(String(describing: responseString))")
                 
