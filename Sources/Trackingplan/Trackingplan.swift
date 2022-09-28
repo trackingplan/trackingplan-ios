@@ -57,7 +57,7 @@ class TrackingplanManager  {
     public static let sdk = "ios"
 
     // please update to match the release version
-    public static let sdkVersion = "1.0.22" 
+    public static let sdkVersion = "1.0.23" 
     
     static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
