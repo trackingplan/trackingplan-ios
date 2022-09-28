@@ -79,7 +79,7 @@ extension TrackingplanConfig {
                 //Logger.debug(message: TrackingplanMessage.message("\(String(describing: TrackingplanConfig.self)) Reset roll dice - last timestamp: \(lastDate)"))
                 return setRandomValue(rate: rate)
             } else {
-                let currentValue = UserDefaultsHelper.getData(type: Bool.self, forKey: .rolledDiceDate) ?? true
+                let currentValue = UserDefaultsHelper.getData(type: Bool.self, forKey: .rolleDiceValue) ?? true
                 //Logger.debug(message: TrackingplanMessage.message("Using existing rolling value: \(currentValue) "))
                 return currentValue
 
