@@ -37,17 +37,13 @@ class TrackingplanNetworkManager {
         //Sampling
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0){ // sample rate is unknown
-            print("SAMPLING 0. NO ESTOY ENCOLANDO")
             retrieveForEmptySampleRate() 
         } else if (self.config.shouldUpdate(rate: sampleRate)) { //Rolling with sampling
-                print("SAMPLING: "+String(sampleRate)+". ESTOY ENCOLANDO.")
                 //Append new tracks and check while timing
                 let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
                 self.trackQueue.enqueue(track)
                 self.didUpdate = true
                 checkAndSend()
-        }else{
-            print("SAMPLING: "+String(sampleRate)+". NOOOO ESTOY ENCOLANDO.")
         }
     }
     
