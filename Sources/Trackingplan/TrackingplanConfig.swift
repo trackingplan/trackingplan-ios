@@ -25,7 +25,7 @@ public struct TrackingplanConfig {
 extension TrackingplanConfig {
         
     static let defaulBatchSize = 10
-    static let tpEndpoint = "https://tracks.trackingplan.com/"
+    static let tpEndpoint = "https://tracks.trackingplan.com/v2"
     static let tpConfigEndpoint = "https://config.trackingplan.com/"
     init(tp_id: String,
                 environment: String? = "PRODUCTION",
