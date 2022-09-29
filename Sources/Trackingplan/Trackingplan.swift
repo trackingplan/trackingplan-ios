@@ -34,7 +34,7 @@ open class Trackingplan {
                 sourceAlias: String? = "",
                 customDomains: Dictionary <String, String>? = [:],
                 debug: Bool? = false,
-                trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
+                trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v2",
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
                 batchSize: Int = 10) -> TrackingplanInstance {
@@ -73,7 +73,7 @@ class TrackingplanManager  {
         environment: String? = "PRODUCTION",
         sourceAlias: String? = "",
         debug: Bool? = false,
-        trackingplanEndpoint: String? = "https://tracks.trackingplan.com/",
+        trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v2",
         trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
         ignoreSampling: Bool? = false,
         customDomains: Dictionary <String, String>? = [:],
