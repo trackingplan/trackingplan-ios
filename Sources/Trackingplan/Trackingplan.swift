@@ -20,6 +20,7 @@ open class Trackingplan {
        - tpId: an id provided by Trackingplan which identifies your company trackingplan.
        - customDomains: allows to extend the list of monitored domains. Any request made to these domains will also be forwarded to Trackingplan. The format is {"myAnalyticsDomain.com": "myAnalytics"}, where you put, respectively, the domain to be looked for and the alias you want to use for that analytics domain. Default: {}. Example: {"mixpanel.com": "Mixpanel"}.
        - environment: allows to isolate the data between production and testing environments. Default: PRODUCTION. Example: DEV.
+       - tags: allows to add tags to the data sent to Trackingplan. Default: {}. Example: {"appVersion": "1.0.0"}. Use it to tag you execution, e.g. with a test name, release number, etc. This will be shown in Trackingplan warnings for debugging.
        - sourceAlias: allows to differentiate between sources. Default: iOS. Example: iOS App.
        - debug: shows Trackingplan debugging information in the console. Default: false. Example: true.
        - batchSize: for internal use only, please let us know if you need to change this value.
@@ -31,17 +32,19 @@ open class Trackingplan {
     open class func initialize(
                 tpId: String = "",
                 environment: String? = "PRODUCTION",
+                tags: Dictionary <String, String>? = [:],
                 sourceAlias: String? = "",
                 customDomains: Dictionary <String, String>? = [:],
                 debug: Bool? = false,
-                trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v2",
+                trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v1/",
                 trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
                 ignoreSampling: Bool? = false,
                 batchSize: Int = 10) -> TrackingplanInstance {
-        
+
         return TrackingplanManager.sharedInstance.initialize(
             tp_id: tpId,
             environment: environment,
+            tags: tags,
             sourceAlias: sourceAlias,
             debug: debug,
             trackingplanEndpoint: trackingplanEndpoint,
@@ -57,52 +60,60 @@ class TrackingplanManager  {
     public static let sdk = "ios"
 
     // please update to match the release version
-    public static let sdkVersion = "1.0.25" 
-    
+    public static let sdkVersion = "1.0.25"
+
     static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
     private var instances: [String: TrackingplanInstance]
     private let readWriteLock: ReadWriteLock
-    
+
     init() {
         instances = [String: TrackingplanInstance]()
         readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
     }
+
     func initialize(
         tp_id: String = "",
         environment: String? = "PRODUCTION",
+        tags: Dictionary <String, String>? = [:],
         sourceAlias: String? = "",
         debug: Bool? = false,
-        trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v2",
+        trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v1/",
         trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
         ignoreSampling: Bool? = false,
         customDomains: Dictionary <String, String>? = [:],
         batchSize: Int = 10,
         instanceName: String? = "default") -> TrackingplanInstance {
-        
-        var providerDomains = defaultProviderDomains
-        if(customDomains != nil){
-            providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
+
+            var providerDomains = defaultProviderDomains
+            if(customDomains != nil){
+                providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
+            }
+
+            //Resolve and setup config tags
+            let configTags = TrackingplanConfig.resolveTags(tags ?? [:])
+            
+            let config = TrackingplanConfig(
+                tp_id: tp_id,
+                environment: TrackingplanConfig.resolveEnvironment() ?? environment,
+                tags: configTags,
+                sourceAlias: sourceAlias,
+                debug: debug,
+                trackingplanEndpoint: trackingplanEndpoint,
+                trackingplanConfigEndpoint: trackingplanConfigEndpoint,
+                ignoreSampling: ignoreSampling,
+                providerDomains: providerDomains,
+                batchSize: batchSize)
+
+            let instance = TrackingplanInstance(config: config)
+            mainInstance = instance
+
+            readWriteLock.write {
+                instances[instanceName ?? "default"] = instance
+            }
+
+            return instance
         }
-        
-        let config = TrackingplanConfig(
-            tp_id: tp_id,
-            environment: environment,
-            sourceAlias: sourceAlias,
-            debug: debug,
-            trackingplanEndpoint: trackingplanEndpoint,
-            trackingplanConfigEndpoint: trackingplanConfigEndpoint,
-            ignoreSampling: ignoreSampling,
-            providerDomains: providerDomains,
-            batchSize: batchSize)
-        
-        let instance = TrackingplanInstance(config: config)
-        mainInstance = instance
-        readWriteLock.write {
-            instances[instanceName ?? "default"] = instance
-        }
-        return instance
-    }
 }
 
 open class TrackingplanInstance {
@@ -124,39 +135,39 @@ open class TrackingplanInstance {
         setupObservers()
         start()
     }
-    
+
     fileprivate func setupObservers() {
-        
+
         NotificationCenter.default.addObserver(self,
                                        selector: #selector(applicationWillTerminate(_:)),
                                        name: UIApplication.willTerminateNotification,
                                        object: nil)
-       
+
         NotificationCenter.default.addObserver(self,
                                        selector: #selector(applicationWillEnterForeground(_:)),
                                        name: UIApplication.willEnterForegroundNotification,
                                        object: nil)
-    
-        
+
+
         NotificationCenter.default.addObserver(self,
                                        selector: #selector(applicationDidEnterBackground(_:)),
                                        name: UIApplication.didEnterBackgroundNotification,
                                        object: nil)
-        
+
             }
-    
+
     fileprivate func start(){
         let requestSniffers: [RequestSniffer] = [
             RequestSniffer(requestEvaluator: AnyHttpRequestEvaluator(), handlers: [
                 self.requestHandler
             ])
         ]
-        
+
         let networkConfig = NetworkInterceptorConfig(requestSniffers: requestSniffers)
         NetworkInterceptor.shared.setup(config: networkConfig)
         NetworkInterceptor.shared.startRecording()
     }
-    
+
     public func stop(){
         NetworkInterceptor.shared.stopRecording()
     }
@@ -164,8 +175,8 @@ open class TrackingplanInstance {
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
-    
-    
+
+
     @discardableResult
     static func sharedUIApplication() -> UIApplication? {
         guard let sharedApplication = UIApplication.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? UIApplication
@@ -174,23 +185,36 @@ open class TrackingplanInstance {
         }
         return sharedApplication
     }
-    
+
     @objc private func applicationWillEnterForeground(_ notification: Notification) {
         NotificationCenter.default.post(name: TrackingplanNetworkManager.SendNotificationName, object: false)
             self.requestHandler.networkManager.retrieveForEmptySampleRate()
     }
-    
+
     @objc private func applicationWillTerminate(_ notification: Notification) {
         NotificationCenter.default.post(name: TrackingplanQueue.ArchiveNotificationName, object: nil)
     }
-    
+
     @objc private func applicationDidEnterBackground(_ notification: Notification) {
         // Max permited execution time is 5 seconds, so please use no more then 2s for waiting
         sleep(2)
         self.requestHandler.networkManager.resolveStackAndSend()
     }
-   
 
+
+}
+extension Bundle {
+    public var appName: String           { getInfo("CFBundleName")  }
+    public var displayName: String       { getInfo("CFBundleDisplayName")}
+    public var language: String          { getInfo("CFBundleDevelopmentRegion")}
+    public var identifier: String        { getInfo("CFBundleIdentifier")}
+    public var copyright: String         { getInfo("NSHumanReadableCopyright").replacingOccurrences(of: "\\\\n", with: "\n") }
+
+    public var appBuild: String          { getInfo("CFBundleVersion") }
+    public var appVersionLong: String    { getInfo("CFBundleShortVersionString") }
+    //public var appVersionShort: String { getInfo("CFBundleShortVersion") }
+
+    fileprivate func getInfo(_ str: String) -> String { infoDictionary?[str] as? String ?? "⚠️" }
 }
 
 private var defaultProviderDomains: Dictionary<String, String> =

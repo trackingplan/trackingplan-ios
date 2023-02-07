@@ -9,6 +9,7 @@ import Foundation
 public struct TrackingplanConfig {
     var tp_id: String
     var environment: String
+    var tags: Dictionary <String, String>
     var sourceAlias: String
     var debug: Bool
     var trackingplanEndpoint: String
@@ -16,28 +17,45 @@ public struct TrackingplanConfig {
     var ignoreSampling: Bool
     var providerDomains: Dictionary <String, String>
     var batchSize: Int
-    
-  
+}
+
+
+public enum TrackingplanTag: String, CaseIterable {
+
+    case tagName = "TP_TAG_"
+    case environment = "TP_ENVIRONMENT"
+
+
+    /// Create an argument Tracking Plan tag that will be used as pair KEY and VALUE.
+    /// This should come from a [String : String] dictionary such ProcessInfo().environment
+    /// - Parameters:
+    ///     - value: original string from the source
+    ///
+    /// - Returns: preform string tag to be recognized by Tracking Plan.
+    public func keyWithName(_ value: String) -> String {
+        return TrackingplanTag.tagName.rawValue + value
+    }
 }
 
 //Basic convenience init and sample rate
-
 extension TrackingplanConfig {
-        
+
     static let defaulBatchSize = 10
-    static let tpEndpoint = "https://tracks.trackingplan.com/v2"
+    static let tpEndpoint = "https://tracks.trackingplan.com/v1/"
     static let tpConfigEndpoint = "https://config.trackingplan.com/"
     init(tp_id: String,
-                environment: String? = "PRODUCTION",
-                sourceAlias: String? = "",
-                debug: Bool? = false,
-                trackingplanEndpoint: String? = TrackingplanConfig.tpEndpoint,
-                trackingplanConfigEndpoint: String? = TrackingplanConfig.tpConfigEndpoint,
-                ignoreSampling: Bool? = false,
-                providerDomains: Dictionary <String, String>? = [:], batchSize: Int = 10
+         environment: String? = "PRODUCTION",
+         tags: Dictionary <String, String>? = [:],
+         sourceAlias: String? = "",
+         debug: Bool? = false,
+         trackingplanEndpoint: String? = TrackingplanConfig.tpEndpoint,
+         trackingplanConfigEndpoint: String? = TrackingplanConfig.tpConfigEndpoint,
+         ignoreSampling: Bool? = false,
+         providerDomains: Dictionary <String, String>? = [:], batchSize: Int = 10
     ){
         self.tp_id = tp_id
         self.environment = environment!
+        self.tags = tags!
         self.sourceAlias = sourceAlias!
         self.debug = debug!
         self.trackingplanEndpoint = trackingplanEndpoint!
@@ -46,11 +64,12 @@ extension TrackingplanConfig {
         self.providerDomains = providerDomains!
         self.batchSize = batchSize
     }
-    
-    
+
+
     init(tp_id: String, providerDomains: Dictionary<String, String>? = [:]) {
         self.tp_id = tp_id
         self.environment = "PRODUCTION"
+        self.tags = [:]
         self.sourceAlias = ""
         self.debug = false
         self.trackingplanEndpoint = TrackingplanConfig.tpEndpoint
@@ -59,11 +78,34 @@ extension TrackingplanConfig {
         self.providerDomains = providerDomains!
         self.batchSize = 10
     }
-    
+
+    @discardableResult
+    static func resolveTags(_ tags: [String : String]) -> [String : String] {
+        var tpTags = tags
+        //Environment tags
+        ProcessInfo().environment.forEach { k, value in
+            if k.starts(with: TrackingplanTag.tagName.rawValue) {
+                tpTags[k] = value
+            }
+        }
+
+        return tpTags
+    }
+
+    static func resolveEnvironment() -> String? {
+        var environment: String?
+        ProcessInfo().environment.forEach { k, value in
+            if k == TrackingplanTag.environment.rawValue {
+                environment = value
+            }
+        }
+        return environment
+    }
+
     static func getCurrentTimestamp() -> TimeInterval {
         Date().timeIntervalSince1970
     }
-    
+
     func sampleRateURL() -> URL? {
        return URL(string:trackingplanConfigEndpoint + "config-" + tp_id + ".json")
     }
@@ -88,11 +130,11 @@ extension TrackingplanConfig {
             return setRandomValue(rate: rate)
         }
     }
-    
+
     @discardableResult
     fileprivate func setRandomValue (rate: Int) -> Bool {
         let sampleInitialValue = self.ignoreSampling ? 0.0 : (Float(arc4random()) / Float(UInt32.max))
-      
+
         let newTs = TrackingplanConfig.getCurrentTimestamp()
         UserDefaultsHelper.setData(value: newTs, key: .rolledDiceDate)
         //Logger.debug(message: TrackingplanMessage.message("Rolled new timestamp: \(newTs) "))

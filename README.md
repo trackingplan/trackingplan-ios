@@ -1,6 +1,6 @@
 # Trackingplan iOS SDK
 
-With Trackingplan for iOS you can make sure that your tracking is going as you planned without changing your current analytics stack or code. 
+With Trackingplan for iOS you can make sure that your tracking is going as you planned without changing your current analytics stack or code.
 
 Trackingplan will monitor traffic between your app and data destinations and automatically detect any changes in your analytics implementation and warn you about inconsistencies like hit drops, missing properties, rogue events, and more.
 
@@ -47,10 +47,10 @@ Then in your application delegate’s -  `application(_:didFinishLaunchingWithOp
 
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        
+
         // Initialize Trackingplan SDK
-        TrackingPlan.initialize(tpId: "#YourTrackingplanId")
-        
+        Trackingplan.initialize(tpId: "#YourTrackingplanId")
+
         return true
 }
 ```
@@ -62,10 +62,37 @@ And of course, import the SDK:
 //  AppDelegate.swift
 //  ...
 
-import TrackingPlan
+import Trackingplan
 ```
 
 All set!
+
+## Using tags
+Tags are a pair of key value dictionary that can be set in 2 ways:
+
+### Predefined tags with TrackingplanTag
+You can build predefined tags so it's easy to recognize if you're using an agent such ProcessInfo:
+- Environment variables: using TrackingplanTag tpEnv case
+```
+//
+// TagsExample.swift
+
+import Trackingplan
+
+...
+//Key pair value for tags
+
+func appendTags(value: String, key: String) {
+    app.launchEnvironment.updateValue(value, forKey: TrackingplanTag.tagName.keyWithName(key))
+}
+  
+```
+
+
+### Environment
+You can set environment in runtime using the tag builder environment
+app.launchEnvironment.updateValue(value, forKey: TrackingplanTag.environment.rawValue)
+
 
 ## Can I install SDK using Cocoapods?
 
@@ -88,10 +115,10 @@ Then in your application delegate’s - `application(_:didFinishLaunchingWithOpt
 
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        
+
         // Initialize Trackingplan SDK
-        TrackingPlan.initialize(tpId: "#YourTrackingplanId")
-        
+        TrackingplanTag.initialize(tpId: "#YourTrackingplanId")
+
         return true
 }
 ```
@@ -103,7 +130,7 @@ And of course, import the SDK:
 //  AppDelegate.swift
 //  ...
 
-import TrackingPlan
+import TrackingplanTag
 ```
 
 All set!
