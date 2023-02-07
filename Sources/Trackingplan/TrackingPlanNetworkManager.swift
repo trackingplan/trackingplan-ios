@@ -11,13 +11,13 @@ class TrackingplanNetworkManager {
     fileprivate var trackQueue: TrackingplanQueue = TrackingplanQueue()
 
     func task() -> URLRequest {
-        let url = URL(string: self.config.trackingplanEndpoint)
+        let url = URL(string: self.config.trackingplanEndpoint + self.config.tp_id)
         var request = URLRequest(url: url!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         return request
     }
-    
+
     fileprivate var didUpdate = false
     fileprivate var updatingSampleRate = false
     fileprivate var trackingQueue: DispatchQueue
@@ -33,11 +33,11 @@ class TrackingplanNetworkManager {
             //Log
             return
         }
-        
+
         //Sampling
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0){ // sample rate is unknown
-            retrieveForEmptySampleRate() 
+            retrieveForEmptySampleRate()
         } else if (self.config.shouldUpdate(rate: sampleRate)) { //Rolling with sampling
                 //Append new tracks and check while timing
                 let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
@@ -46,14 +46,14 @@ class TrackingplanNetworkManager {
                 checkAndSend()
         }
     }
-    
+
     @objc private func checkAndSend() {
         if self.trackQueue.taskCount() >= self.config.batchSize  {
             resolveStackAndSend()
         }
     }
-    
-    
+
+
     @objc func resolveStackAndSend() {
         self.didUpdate = false
         trackingQueue.asyncAfter(deadline: TrackingplanQueue.delay) { [weak self] in
@@ -81,13 +81,13 @@ class TrackingplanNetworkManager {
                // let responseString = String(data: data, encoding: .utf8)
                 self?.trackQueue.cleanUp()
                 // print("responseString = \(String(describing: responseString))")
-                
+
             }
             task.resume()
-            
+
         }
     }
-    
+
     private func getAnalyticsProvider(url:String, providerDomains: Dictionary<String, String>) -> String?{
         for (pattern, provider) in providerDomains {
             if url.contains(pattern){
@@ -96,7 +96,7 @@ class TrackingplanNetworkManager {
         }
         return nil
     }
-    
+
     private func setSampleRate(sampleRate: Int){
         let sampleData = TrackingplanSampleRate(
             sampleRate: sampleRate,
@@ -104,9 +104,9 @@ class TrackingplanNetworkManager {
         UserDefaults.standard.encode(for: sampleData, using: UserDefaultKey.sampleRate.rawValue)
         UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
     }
-    
+
     private func getSampleRate() -> Int{
-        guard let currentSampleRate = UserDefaults.standard.decode(for: TrackingplanSampleRate.self, using: UserDefaultKey.sampleRate.rawValue) 
+        guard let currentSampleRate = UserDefaults.standard.decode(for: TrackingplanSampleRate.self, using: UserDefaultKey.sampleRate.rawValue)
         else {
             return 0
         }
@@ -120,15 +120,15 @@ class TrackingplanNetworkManager {
         let retryDownloadAfterSeconds = 3600
         if let emptySampleRateTimeStamp = UserDefaultsHelper.getData(type: Int.self, forKey: .sampleRateTimestamp), Int(TrackingplanConfig.getCurrentTimestamp()) - emptySampleRateTimeStamp > retryDownloadAfterSeconds &&  UserDefaultsHelper.getData(type: TrackingplanSampleRate.self, forKey: .sampleRate) != nil {
             retrieveAndSampleRate { _ in}
-        } 
+        }
     }
     func retrieveAndSampleRate(completionHandler:@escaping (Bool)->Void){
-        
+
         if(self.updatingSampleRate) {
             return
         }
         let sampleRate = self.getSampleRate()
-        
+
         if(sampleRate == 0) {
             guard let url = self.config.sampleRateURL() else {
                 return
@@ -138,20 +138,20 @@ class TrackingplanNetworkManager {
                 guard let dataResponse = data,
                         error == nil else {
                             // print(error?.localizedDescription ?? "Response Error")
-                            return 
+                            return
                         }
                     do {
                         let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: AnyObject]
-                        
+
                         var sampleRate = 0
                         if let defaultSampleRate = json["sample_rate"] as? Int{
                             sampleRate = defaultSampleRate
                         }
-                        
+
                         if let environmentSampleRate = json["environment_rates"]?[self?.config.environment ?? "" as String] as? Int{
                             sampleRate = environmentSampleRate
                         }
-                        
+
                         self?.setSampleRate(sampleRate: sampleRate)
                         self?.updatingSampleRate = false
                         completionHandler(true)
