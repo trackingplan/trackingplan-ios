@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name              = 'Trackingplan'
-  s.version           = '1.0.26'
+  s.version           = '1.0.27'
   s.summary           = 'Trackingplan iOS SDK'
   s.homepage          = 'https://github.com/trackingplan/trackingplan-ios'
   s.platform          = :ios, '12.0'

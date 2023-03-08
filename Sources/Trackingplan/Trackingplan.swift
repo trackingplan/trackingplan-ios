@@ -60,7 +60,7 @@ class TrackingplanManager  {
     public static let sdk = "ios"
 
     // please update to match the release version
-    public static let sdkVersion = "1.0.26"
+    public static let sdkVersion = "1.0.27"
 
     static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
@@ -92,7 +92,8 @@ class TrackingplanManager  {
 
             //Resolve and setup config tags
             let configTags = TrackingplanConfig.resolveTags(tags ?? [:])
-            
+            let configBatchSize = TrackingplanConfig.shouldForceRealTime() ? 1 : batchSize
+
             let config = TrackingplanConfig(
                 tp_id: tp_id,
                 environment: TrackingplanConfig.resolveEnvironment() ?? environment,
@@ -103,7 +104,7 @@ class TrackingplanManager  {
                 trackingplanConfigEndpoint: trackingplanConfigEndpoint,
                 ignoreSampling: ignoreSampling,
                 providerDomains: providerDomains,
-                batchSize: batchSize)
+                batchSize: configBatchSize)
 
             let instance = TrackingplanInstance(config: config)
             mainInstance = instance
@@ -189,10 +190,18 @@ open class TrackingplanInstance {
     @objc private func applicationWillEnterForeground(_ notification: Notification) {
         NotificationCenter.default.post(name: TrackingplanNetworkManager.SendNotificationName, object: false)
             self.requestHandler.networkManager.retrieveForEmptySampleRate()
+
+        if TrackingplanConfig.shouldForceRealTime() {
+            self.requestHandler.networkManager.resolveStackAndSend()
+        }
     }
 
     @objc private func applicationWillTerminate(_ notification: Notification) {
-        NotificationCenter.default.post(name: TrackingplanQueue.ArchiveNotificationName, object: nil)
+        if TrackingplanConfig.shouldForceRealTime() {
+            self.requestHandler.networkManager.resolveStackAndSend()
+        } else {
+            NotificationCenter.default.post(name: TrackingplanQueue.ArchiveNotificationName, object: nil)
+        }
     }
 
     @objc private func applicationDidEnterBackground(_ notification: Notification) {

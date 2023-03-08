@@ -85,7 +85,7 @@ extension TrackingplanConfig {
         //Environment tags
         ProcessInfo().environment.forEach { k, value in
             if k.starts(with: TrackingplanTag.tagName.rawValue) {
-                tpTags[k] = value
+                tpTags[k.replacingOccurrences(of: TrackingplanTag.tagName.rawValue, with: "")] = value
             }
         }
 
@@ -104,6 +104,14 @@ extension TrackingplanConfig {
 
     static func getCurrentTimestamp() -> TimeInterval {
         Date().timeIntervalSince1970
+    }
+
+    static let TestSessionName = "test_session_name"
+    static func shouldForceRealTime() -> Bool {
+        if let sessionName = ProcessInfo().environment[TrackingplanConfig.TestSessionName], !sessionName.isEmpty {
+            return true
+        }
+        return false
     }
 
     func sampleRateURL() -> URL? {
