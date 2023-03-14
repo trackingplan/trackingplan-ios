@@ -39,11 +39,11 @@ class TrackingplanQueue {
     func taskCount() -> Int {
         return self.storage.count
     }
+
     func enqueue(_ element: TrackingplanTrack) -> Void
     {
         self.readWriteLock.write {
             self.storage.append(element)
-
         }
     }
 
@@ -83,7 +83,6 @@ class TrackingplanQueue {
     func cleanUp() {
         readWriteLock.write {
             self.storage.removeAll()
-
         }
         UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)
     }

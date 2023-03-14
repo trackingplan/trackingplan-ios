@@ -106,7 +106,7 @@ extension TrackingplanConfig {
         Date().timeIntervalSince1970
     }
 
-    static let TestSessionName = "test_session_name"
+    static let TestSessionName = "TP_TAG_test_session_name"
     static func shouldForceRealTime() -> Bool {
         if let sessionName = ProcessInfo().environment[TrackingplanConfig.TestSessionName], !sessionName.isEmpty {
             return true

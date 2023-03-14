@@ -11,7 +11,6 @@
 import Foundation
 import UIKit
 
-
 open class Trackingplan {
     /**
     Initializes and configures Trackingplan SDK. You only need to call this method once from application delegate’s method.
@@ -60,7 +59,7 @@ class TrackingplanManager  {
     public static let sdk = "ios"
 
     // please update to match the release version
-    public static let sdkVersion = "1.0.27"
+    public static let sdkVersion = "1.0.28"
 
     static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
@@ -138,7 +137,6 @@ open class TrackingplanInstance {
     }
 
     fileprivate func setupObservers() {
-
         NotificationCenter.default.addObserver(self,
                                        selector: #selector(applicationWillTerminate(_:)),
                                        name: UIApplication.willTerminateNotification,
@@ -154,8 +152,11 @@ open class TrackingplanInstance {
                                        selector: #selector(applicationDidEnterBackground(_:)),
                                        name: UIApplication.didEnterBackgroundNotification,
                                        object: nil)
-
-            }
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(applicationBecomeActive(_:)),
+                                               name: UIApplication.didBecomeActiveNotification,
+                                               object: nil)
+     }
 
     fileprivate func start(){
         let requestSniffers: [RequestSniffer] = [
@@ -185,6 +186,12 @@ open class TrackingplanInstance {
             return nil
         }
         return sharedApplication
+    }
+
+    @objc private func applicationBecomeActive(_ notification: Notification) {
+        if TrackingplanConfig.shouldForceRealTime() {
+            self.requestHandler.networkManager.resolveStackAndSend()
+        }
     }
 
     @objc private func applicationWillEnterForeground(_ notification: Notification) {

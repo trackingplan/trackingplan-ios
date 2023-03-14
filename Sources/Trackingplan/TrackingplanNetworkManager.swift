@@ -56,10 +56,14 @@ class TrackingplanNetworkManager {
 
     @objc func resolveStackAndSend() {
         self.didUpdate = false
-        trackingQueue.asyncAfter(deadline: TrackingplanQueue.delay) { [weak self] in
+        let deadLineTime = TrackingplanConfig.shouldForceRealTime() ? DispatchTime.now() : TrackingplanQueue.delay
+        trackingQueue.asyncAfter(deadline: deadLineTime) { [weak self] in
             guard !(self?.didUpdate ?? true), var request = self?.task(), let rawQueue = self?.trackQueue.retrieveRaw(), !rawQueue.isEmpty else {
                 return
             }
+            
+            self?.trackQueue.cleanUp()
+
             let session = URLSession.shared
             let jsonData = try! JSONSerialization.data(withJSONObject: rawQueue, options: [])
             request.httpBody = jsonData
@@ -79,7 +83,6 @@ class TrackingplanNetworkManager {
                 //}
                 //Cleanup queue when success only
                // let responseString = String(data: data, encoding: .utf8)
-                self?.trackQueue.cleanUp()
                 // print("responseString = \(String(describing: responseString))")
 
             }
