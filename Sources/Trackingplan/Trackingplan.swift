@@ -52,16 +52,17 @@ open class Trackingplan {
             customDomains: customDomains,
             batchSize: batchSize)
     }
+
 }
 
 
-class TrackingplanManager  {
+open class TrackingplanManager  {
     public static let sdk = "ios"
 
     // please update to match the release version
-    public static let sdkVersion = "1.0.28"
+    public static let sdkVersion = "1.0.25"
 
-    static let sharedInstance = TrackingplanManager()
+    public static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
     private var instances: [String: TrackingplanInstance]
     private let readWriteLock: ReadWriteLock
@@ -71,6 +72,22 @@ class TrackingplanManager  {
         readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
     }
 
+    public func dispatchRealTime(jsonData: NSDictionary, provider: String) {
+        guard TrackingplanConfig.shouldForceRealTime() else {
+            return
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: jsonData)
+            if let json = String(data: jsonData, encoding: .utf8) {
+                self.mainInstance?.dispatchRealTime(jsonData: json, provider: provider)
+            }
+        } catch {
+            
+        }
+    }
+
+    
     func initialize(
         tp_id: String = "",
         environment: String? = "PRODUCTION",
@@ -85,7 +102,7 @@ class TrackingplanManager  {
         instanceName: String? = "default") -> TrackingplanInstance {
 
             var providerDomains = defaultProviderDomains
-            if(customDomains != nil){
+            if(customDomains != nil && !TrackingplanConfig.shouldForceRealTime()){
                 providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
             }
 
@@ -120,7 +137,7 @@ open class TrackingplanInstance {
     private static let interceptor = NetworkInterceptor()
     private var requestHandler: TrackingplanRequestHandler
     private var config: TrackingplanConfig
-
+    
     let readWriteLock: ReadWriteLock
     var trackingQueue: DispatchQueue!
     var networkQueue: DispatchQueue!
@@ -134,6 +151,10 @@ open class TrackingplanInstance {
         self.config = config
         setupObservers()
         start()
+    }
+    
+    public func dispatchRealTime(jsonData: String, provider: String) {
+        self.requestHandler.networkManager.dispatchRealTimeRequest(jsonData, provider: provider)
     }
 
     fileprivate func setupObservers() {
@@ -152,10 +173,7 @@ open class TrackingplanInstance {
                                        selector: #selector(applicationDidEnterBackground(_:)),
                                        name: UIApplication.didEnterBackgroundNotification,
                                        object: nil)
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(applicationBecomeActive(_:)),
-                                               name: UIApplication.didBecomeActiveNotification,
-                                               object: nil)
+
      }
 
     fileprivate func start(){
@@ -186,12 +204,6 @@ open class TrackingplanInstance {
             return nil
         }
         return sharedApplication
-    }
-
-    @objc private func applicationBecomeActive(_ notification: Notification) {
-        if TrackingplanConfig.shouldForceRealTime() {
-            self.requestHandler.networkManager.resolveStackAndSend()
-        }
     }
 
     @objc private func applicationWillEnterForeground(_ notification: Notification) {
@@ -266,5 +278,4 @@ private var defaultProviderDomains: Dictionary<String, String> =
         "/i/adsct": "twitter",
         "bat.bing.com": "bing",
         "pdst.fm": "podsights",
-        "app-measurement.com": "googleanalyticsfirebase"
-    ]
+        "app-measurement.com": "googleanalyticsfirebase"    ]

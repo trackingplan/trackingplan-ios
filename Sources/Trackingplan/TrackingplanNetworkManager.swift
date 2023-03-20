@@ -27,17 +27,22 @@ class TrackingplanNetworkManager {
         self.trackingQueue = queue
         retrieveAndSampleRate(completionHandler: { complete in })
     }
-
+  
+    
     open func processRequest(urlRequest: URLRequest) {
         guard let provider = self.getAnalyticsProvider(url: urlRequest.url!.absoluteString, providerDomains: self.config.providerDomains) else {
             //Log
             return
         }
-
+        
+      
         //Sampling
         let sampleRate = self.getSampleRate()
         if(sampleRate == 0){ // sample rate is unknown
             retrieveForEmptySampleRate()
+        } else if TrackingplanConfig.shouldForceRealTime() {
+                let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
+                resolveNow(track: track)
         } else if (self.config.shouldUpdate(rate: sampleRate)) { //Rolling with sampling
                 //Append new tracks and check while timing
                 let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
@@ -46,14 +51,31 @@ class TrackingplanNetworkManager {
                 checkAndSend()
         }
     }
-
+    
+    open func dispatchRealTimeRequest(_ jsonData: String, provider: String) {
+        let sampleRate = self.getSampleRate()
+        let track = TrackingplanTrack(jsonData: jsonData, provider: provider, sampleRate: sampleRate, config: self.config)
+        resolveNow(track: track)
+    }
+    
+    
+    private func resolveNow(track: TrackingplanTrack) {
+        let raw = [track.dictionary!]
+        var request = task()
+        let session = URLSession.shared
+        let jsonData = try! JSONSerialization.data(withJSONObject: raw, options: [])
+        request.httpBody = jsonData
+        let task =  session.dataTask(with: request) {data, response, error in}
+        task.resume()
+    }
+    
     @objc private func checkAndSend() {
         if self.trackQueue.taskCount() >= self.config.batchSize  {
             resolveStackAndSend()
         }
     }
 
-
+    
     @objc func resolveStackAndSend() {
         self.didUpdate = false
         let deadLineTime = TrackingplanConfig.shouldForceRealTime() ? DispatchTime.now() : TrackingplanQueue.delay

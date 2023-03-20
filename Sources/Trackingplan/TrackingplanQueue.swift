@@ -13,9 +13,25 @@ class TrackingplanQueue {
     static let defaultArchiveKey = "com.trackingplan.store"
     static let archiveKey = "trackingplanQueue"
 
-    private var storage: [TrackingplanTrack]
-    let readWriteLock = ReadWriteLock(label: "com.trackingplan.globallock")
+    let storageQueue = DispatchQueue(label: "com.trackingplan.storage", attributes: .concurrent)
 
+    private var _storage: [TrackingplanTrack]
+
+    var storage: [TrackingplanTrack] {
+        get {
+            storageQueue.sync {
+                 return _storage
+            }
+        }
+        set {
+            storageQueue.async(flags: .barrier) {
+                self._storage = newValue
+            }
+        }
+    }
+
+    private let semaphore = DispatchSemaphore(value: 1)
+   
     fileprivate let validArchive: Bool = {
         //Check is last archive tracks ar older than 20 min
         if let lastUnarchiveDate = UserDefaultsHelper.getData(type: Int.self, forKey: .lastArchivedDate) {
@@ -26,7 +42,7 @@ class TrackingplanQueue {
 
     init()
     {
-        self.storage = [TrackingplanTrack]()
+        self._storage = [TrackingplanTrack]()
         //Build previous storage
         unarchive()
         NotificationCenter.default.addObserver(self,
@@ -42,14 +58,18 @@ class TrackingplanQueue {
 
     func enqueue(_ element: TrackingplanTrack) -> Void
     {
-        self.readWriteLock.write {
-            self.storage.append(element)
-        }
+        semaphore.wait()
+        self.storage.append(element)
+        semaphore.signal()
     }
 
     func dequeue() -> TrackingplanTrack?
     {
-        return self.storage.removeFirst()
+        semaphore.wait()
+        defer {
+            semaphore.signal()
+        }
+        return self.storage.isEmpty ? nil : self.storage.removeFirst()
     }
 
 
@@ -77,13 +97,17 @@ class TrackingplanQueue {
     }
 
     func retrieveRaw() -> [[String:Any]]? {
+        defer {
+            self.semaphore.signal()
+        }
+        self.semaphore.wait()
         return self.storage.map({$0.dictionary!})
     }
 
     func cleanUp() {
-        readWriteLock.write {
-            self.storage.removeAll()
-        }
+        self.semaphore.wait()
+        self.storage.removeAll()
+        self.semaphore.signal()
         UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)
     }
 }
@@ -130,6 +154,19 @@ struct TrackingplanTrack: Codable {
         self.debug = config.debug
     }
 
+    init (jsonData: String, provider: String, sampleRate: Int, config: TrackingplanConfig) {
+        self.provider = provider
+        self.request = TrackingplanTrackRequest(jsonData: jsonData)
+        self.tp_id = config.tp_id
+        self.source_alias = config.sourceAlias
+        self.environment = config.environment
+        self.tags = config.tags
+        self.sdk = TrackingplanManager.sdk
+        self.sdk_version = TrackingplanManager.sdkVersion
+        self.samplingRate = sampleRate
+        self.debug = config.debug
+    }
+    
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: TrackKeys.self)
         self.provider = try container.decode(String.self, forKey: .provider)
@@ -195,7 +232,14 @@ struct TrackingplanTrackRequest: Codable {
         self.post_payload = requestHttpBody?.body
         self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
     }
-
+    init(jsonData: String) {
+        self.endpoint = "https://www.trackingplan.com/rt"
+        // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
+        self.method = "POST"
+        // The payload, in its original form. If it’s a POST request, the raw payload, if it’s a GET, the querystring (are there other ways?).
+        self.post_payload = jsonData
+        self.post_payload_type = RequestDataType.string.rawValue
+    }
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: RequestTrackKeys.self)
         self.endpoint = try container.decode(String.self, forKey: .endpoint)
