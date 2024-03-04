@@ -40,59 +40,48 @@ Click finish and you will see the library added to the Swift Package Dependencie
 
 Then in your application delegate’s -  `application(_:didFinishLaunchingWithOptions:)` method, set up the SDK like so:
 
-```
-//
-//  AppDelegate.swift
-//  ...
-
+```swift
+// AppDelegate.swift
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+    // Override point for customization after application launch.
 
-        // Initialize Trackingplan SDK
-        Trackingplan.initialize(tpId: "#YourTrackingplanId")
+    // Initialize Trackingplan SDK
+    Trackingplan.initialize(tpId: "#YourTrackingplanId")
 
-        return true
+    return true
 }
 ```
 
 And of course, import the SDK:
 
-```
-//
-//  AppDelegate.swift
-//  ...
-
+```swift
+// AppDelegate.swift
 import Trackingplan
 ```
 
 All set!
 
 ## Using tags
-Tags are a pair of key value dictionary that can be set in 2 ways:
+Tags are a pair of key-value strings that will be used for tagging data sent to Trackingplan. They
+can be used from your Trackingplan dashboard for debuging purposes, for example, to filter warnings
+affecting a specific app version, contry and so on.
 
-### Predefined tags with TrackingplanTag
-You can build predefined tags so it's easy to recognize if you're using an agent such ProcessInfo:
-- Environment variables: using TrackingplanTag tpEnv case
+### Example
+```swift
+// Initialize Trackingplan SDK
+Trackingplan.initialize(
+    tpId: "#YourTrackingplanId",
+    tags: [
+        // "app_version": "1.0.0", Omitted, this is automatically set
+        "lang": "en",
+        "country": "us"
+    ]
+)
 ```
-//
-// TagsExample.swift
-
-import Trackingplan
-
-...
-//Key pair value for tags
-
-func appendTags(value: String, key: String) {
-    app.launchEnvironment.updateValue(value, forKey: TrackingplanTag.tagName.keyWithName(key))
-}
-  
-```
-
 
 ### Environment
 You can set environment in runtime using the tag builder environment
 app.launchEnvironment.updateValue(value, forKey: TrackingplanTag.environment.rawValue)
-
 
 ## Can I install SDK using Cocoapods?
 
@@ -101,18 +90,13 @@ Yes, we also sopport installation using Cocoapods.
 First, add the Trackingplan dependency to your Podfile, like so:
 
 ```
-
 pod 'Trackingplan', :git => 'https://github.com/trackingplan/trackingplan-ios.git'
-
 ```
 
 Then in your application delegate’s - `application(_:didFinishLaunchingWithOptions:)` method, set up the SDK like so:
 
-```
-//
-//  AppDelegate.swift
-//  ...
-
+```swift
+// AppDelegate.swift
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
 
@@ -125,11 +109,8 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
 
 And of course, import the SDK:
 
-```
-//
-//  AppDelegate.swift
-//  ...
-
+```swift
+// AppDelegate.swift
 import TrackingplanTag
 ```
 
