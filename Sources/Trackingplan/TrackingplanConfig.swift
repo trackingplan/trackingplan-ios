@@ -41,7 +41,7 @@ public enum TrackingplanTag: String, CaseIterable {
 extension TrackingplanConfig {
 
     static let defaulBatchSize = 10
-    static let tpEndpoint = "https://tracks.trackingplan.com/v1/"
+    static let tpEndpoint = "https://eu-tracks.trackingplan.com/v1/"
     static let tpConfigEndpoint = "https://config.trackingplan.com/"
     init(tp_id: String,
          environment: String? = "PRODUCTION",

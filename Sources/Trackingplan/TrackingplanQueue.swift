@@ -14,6 +14,7 @@ class TrackingplanQueue {
     static let archiveKey = "trackingplanQueue"
 
     let storageQueue = DispatchQueue(label: "com.trackingplan.storage", attributes: .concurrent)
+    let logger: TrackingPlanLogger
 
     private var _storage: [TrackingplanTrack]
 
@@ -43,6 +44,7 @@ class TrackingplanQueue {
     init()
     {
         self._storage = [TrackingplanTrack]()
+        logger = TrackingplanManager.logger
         //Build previous storage
         unarchive()
         NotificationCenter.default.addObserver(self,
@@ -78,7 +80,7 @@ class TrackingplanQueue {
         UserDefaults.standard.encode(for: self.storage, using: TrackingplanQueue.defaultArchiveKey)
         //Save timestamp for archive
         UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .lastArchivedDate)
-        Logger.debug(message: TrackingplanMessage.message("Storage archive success count: \(self.storage.count) "))
+        logger.debug(message: TrackingplanMessage.message("Storage archive success count: \(self.storage.count) "))
 
     }
 
@@ -87,7 +89,7 @@ class TrackingplanQueue {
             return
         }
 
-        Logger.debug(message: TrackingplanMessage.message("Storage unarchive success count: \(tracksArray.count) "))
+        logger.debug(message: TrackingplanMessage.message("Storage unarchive success count: \(tracksArray.count) "))
         self.storage.append(contentsOf:tracksArray)
         //Cleanup Tracks archive
         UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)

@@ -8,38 +8,39 @@
 //  Trackingplan(tp_id: "zara-ios-test", debug: true).start()
 //
 
+import os
 import Foundation
 import UIKit
 
 open class Trackingplan {
     /**
-    Initializes and configures Trackingplan SDK. You only need to call this method once from application delegate’s method.
-
-    - Parameters:
-       - tpId: an id provided by Trackingplan which identifies your company trackingplan.
-       - customDomains: allows to extend the list of monitored domains. Any request made to these domains will also be forwarded to Trackingplan. The format is {"myAnalyticsDomain.com": "myAnalytics"}, where you put, respectively, the domain to be looked for and the alias you want to use for that analytics domain. Default: {}. Example: {"mixpanel.com": "Mixpanel"}.
-       - environment: allows to isolate the data between production and testing environments. Default: PRODUCTION. Example: DEV.
-       - tags: allows to add tags to the data sent to Trackingplan. Default: {}. Example: {"appVersion": "1.0.0"}. Use it to tag you execution, e.g. with a test name, release number, etc. This will be shown in Trackingplan warnings for debugging.
-       - sourceAlias: allows to differentiate between sources. Default: iOS. Example: iOS App.
-       - debug: shows Trackingplan debugging information in the console. Default: false. Example: true.
-       - batchSize: for internal use only, please let us know if you need to change this value.
-       - trackingplanEndpoint: for internal use only, please let us know if you need to change this value.
-       - trackingplanConfigEndpoint: for internal use only, please let us know if you need to change this value.
-       - ignoreSampling: for internal use only, please let us know if you need to change this value.
-    */
+     Initializes and configures Trackingplan SDK. You only need to call this method once from application delegate’s method.
+     
+     - Parameters:
+     - tpId: an id provided by Trackingplan which identifies your company trackingplan.
+     - customDomains: allows to extend the list of monitored domains. Any request made to these domains will also be forwarded to Trackingplan. The format is {"myAnalyticsDomain.com": "myAnalytics"}, where you put, respectively, the domain to be looked for and the alias you want to use for that analytics domain. Default: {}. Example: {"mixpanel.com": "Mixpanel"}.
+     - environment: allows to isolate the data between production and testing environments. Default: PRODUCTION. Example: DEV.
+     - tags: allows to add tags to the data sent to Trackingplan. Default: {}. Example: {"appVersion": "1.0.0"}. Use it to tag you execution, e.g. with a test name, release number, etc. This will be shown in Trackingplan warnings for debugging.
+     - sourceAlias: allows to differentiate between sources. Default: iOS. Example: iOS App.
+     - debug: shows Trackingplan debugging information in the console. Default: false. Example: true.
+     - batchSize: for internal use only, please let us know if you need to change this value.
+     - trackingplanEndpoint: for internal use only, please let us know if you need to change this value.
+     - trackingplanConfigEndpoint: for internal use only, please let us know if you need to change this value.
+     - ignoreSampling: for internal use only, please let us know if you need to change this value.
+     */
     @discardableResult
     open class func initialize(
-                tpId: String = "",
-                environment: String? = "PRODUCTION",
-                tags: Dictionary <String, String>? = [:],
-                sourceAlias: String? = "",
-                customDomains: Dictionary <String, String>? = [:],
-                debug: Bool? = false,
-                trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v1/",
-                trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
-                ignoreSampling: Bool? = false,
-                batchSize: Int = 10) -> TrackingplanInstance {
-
+        tpId: String = "",
+        environment: String = "PRODUCTION",
+        tags: Dictionary <String, String> = [:],
+        sourceAlias: String = "",
+        customDomains: Dictionary <String, String> = [:],
+        debug: Bool = false,
+        trackingplanEndpoint: String = "https://eu-tracks.trackingplan.com/v1/",
+        trackingplanConfigEndpoint: String = "https://config.trackingplan.com/",
+        ignoreSampling: Bool = false,
+        batchSize: Int = 10
+    ) -> TrackingplanInstance {
         return TrackingplanManager.sharedInstance.initialize(
             tp_id: tpId,
             environment: environment,
@@ -52,26 +53,22 @@ open class Trackingplan {
             customDomains: customDomains,
             batchSize: batchSize)
     }
-
+    
 }
 
 
 open class TrackingplanManager  {
+    
+    internal static let logger = TrackingPlanLogger(tagName: "Trackingplan")
+    
     public static let sdk = "ios"
-
+    
     // please update to match the release version
-    public static let sdkVersion = "1.0.25"
-
+    public static let sdkVersion = "1.0.30"
+    
     public static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
-    private var instances: [String: TrackingplanInstance]
-    private let readWriteLock: ReadWriteLock
-
-    init() {
-        instances = [String: TrackingplanInstance]()
-        readWriteLock = ReadWriteLock(label: "com.trackingplanios.instance.manager.lock")
-    }
-
+    
     public func dispatchRealTime(jsonData: NSDictionary, provider: String) {
         guard TrackingplanConfig.shouldForceRealTime() else {
             return
@@ -86,51 +83,49 @@ open class TrackingplanManager  {
             
         }
     }
-
     
     func initialize(
-        tp_id: String = "",
-        environment: String? = "PRODUCTION",
-        tags: Dictionary <String, String>? = [:],
-        sourceAlias: String? = "",
-        debug: Bool? = false,
-        trackingplanEndpoint: String? = "https://tracks.trackingplan.com/v1/",
-        trackingplanConfigEndpoint: String? = "https://config.trackingplan.com/",
-        ignoreSampling: Bool? = false,
-        customDomains: Dictionary <String, String>? = [:],
-        batchSize: Int = 10,
-        instanceName: String? = "default") -> TrackingplanInstance {
-
-            var providerDomains = defaultProviderDomains
-            if(customDomains != nil && !TrackingplanConfig.shouldForceRealTime()){
-                providerDomains = defaultProviderDomains.merging(customDomains!){ (_, new) in new }
-            }
-
-            //Resolve and setup config tags
-            let configTags = TrackingplanConfig.resolveTags(tags ?? [:])
-            let configBatchSize = TrackingplanConfig.shouldForceRealTime() ? 1 : batchSize
-
-            let config = TrackingplanConfig(
-                tp_id: tp_id,
-                environment: TrackingplanConfig.resolveEnvironment() ?? environment,
-                tags: configTags,
-                sourceAlias: sourceAlias,
-                debug: debug,
-                trackingplanEndpoint: trackingplanEndpoint,
-                trackingplanConfigEndpoint: trackingplanConfigEndpoint,
-                ignoreSampling: ignoreSampling,
-                providerDomains: providerDomains,
-                batchSize: configBatchSize)
-
-            let instance = TrackingplanInstance(config: config)
-            mainInstance = instance
-
-            readWriteLock.write {
-                instances[instanceName ?? "default"] = instance
-            }
-
-            return instance
+        tp_id: String,
+        environment: String,
+        tags: Dictionary <String, String>,
+        sourceAlias: String,
+        debug: Bool,
+        trackingplanEndpoint: String,
+        trackingplanConfigEndpoint: String,
+        ignoreSampling: Bool?,
+        customDomains: Dictionary <String, String>,
+        batchSize: Int) -> TrackingplanInstance
+    {
+        if debug {
+            TrackingplanManager.logger.enableLogging()
         }
+        
+        var providerDomains = defaultProviderDomains
+        if(!TrackingplanConfig.shouldForceRealTime()){
+            providerDomains = defaultProviderDomains.merging(customDomains){ (_, new) in new }
+        }
+        
+        //Resolve and setup config tags
+        let configTags = TrackingplanConfig.resolveTags(tags)
+        let configBatchSize = TrackingplanConfig.shouldForceRealTime() ? 1 : batchSize
+        
+        let config = TrackingplanConfig(
+            tp_id: tp_id,
+            environment: TrackingplanConfig.resolveEnvironment() ?? environment,
+            tags: configTags,
+            sourceAlias: sourceAlias,
+            debug: debug,
+            trackingplanEndpoint: trackingplanEndpoint,
+            trackingplanConfigEndpoint: trackingplanConfigEndpoint,
+            ignoreSampling: ignoreSampling,
+            providerDomains: providerDomains,
+            batchSize: configBatchSize)
+        
+        let instance = TrackingplanInstance(config: config)
+        mainInstance = instance
+        
+        return instance
+    }
 }
 
 open class TrackingplanInstance {
@@ -141,7 +136,7 @@ open class TrackingplanInstance {
     let readWriteLock: ReadWriteLock
     var trackingQueue: DispatchQueue!
     var networkQueue: DispatchQueue!
-
+    
     init(config: TrackingplanConfig) {
         let label = "com.trackingplan.\(config.tp_id)"
         trackingQueue = DispatchQueue(label: "\(label).tracking)", qos: .utility)
@@ -156,47 +151,47 @@ open class TrackingplanInstance {
     public func dispatchRealTime(jsonData: String, provider: String) {
         self.requestHandler.networkManager.dispatchRealTimeRequest(jsonData, provider: provider)
     }
-
+    
     fileprivate func setupObservers() {
         NotificationCenter.default.addObserver(self,
-                                       selector: #selector(applicationWillTerminate(_:)),
-                                       name: UIApplication.willTerminateNotification,
-                                       object: nil)
-
+                                               selector: #selector(applicationWillTerminate(_:)),
+                                               name: UIApplication.willTerminateNotification,
+                                               object: nil)
+        
         NotificationCenter.default.addObserver(self,
-                                       selector: #selector(applicationWillEnterForeground(_:)),
-                                       name: UIApplication.willEnterForegroundNotification,
-                                       object: nil)
-
-
+                                               selector: #selector(applicationWillEnterForeground(_:)),
+                                               name: UIApplication.willEnterForegroundNotification,
+                                               object: nil)
+        
+        
         NotificationCenter.default.addObserver(self,
-                                       selector: #selector(applicationDidEnterBackground(_:)),
-                                       name: UIApplication.didEnterBackgroundNotification,
-                                       object: nil)
-
-     }
-
+                                               selector: #selector(applicationDidEnterBackground(_:)),
+                                               name: UIApplication.didEnterBackgroundNotification,
+                                               object: nil)
+        
+    }
+    
     fileprivate func start(){
         let requestSniffers: [RequestSniffer] = [
             RequestSniffer(requestEvaluator: AnyHttpRequestEvaluator(), handlers: [
                 self.requestHandler
             ])
         ]
-
+        
         let networkConfig = NetworkInterceptorConfig(requestSniffers: requestSniffers)
         NetworkInterceptor.shared.setup(config: networkConfig)
         NetworkInterceptor.shared.startRecording()
     }
-
+    
     public func stop(){
         NetworkInterceptor.shared.stopRecording()
     }
-
+    
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
-
-
+    
+    
     @discardableResult
     static func sharedUIApplication() -> UIApplication? {
         guard let sharedApplication = UIApplication.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? UIApplication
@@ -205,16 +200,16 @@ open class TrackingplanInstance {
         }
         return sharedApplication
     }
-
+    
     @objc private func applicationWillEnterForeground(_ notification: Notification) {
         NotificationCenter.default.post(name: TrackingplanNetworkManager.SendNotificationName, object: false)
-            self.requestHandler.networkManager.retrieveForEmptySampleRate()
-
+        self.requestHandler.networkManager.retrieveForEmptySampleRate()
+        
         if TrackingplanConfig.shouldForceRealTime() {
             self.requestHandler.networkManager.resolveStackAndSend()
         }
     }
-
+    
     @objc private func applicationWillTerminate(_ notification: Notification) {
         if TrackingplanConfig.shouldForceRealTime() {
             self.requestHandler.networkManager.resolveStackAndSend()
@@ -222,14 +217,14 @@ open class TrackingplanInstance {
             NotificationCenter.default.post(name: TrackingplanQueue.ArchiveNotificationName, object: nil)
         }
     }
-
+    
     @objc private func applicationDidEnterBackground(_ notification: Notification) {
         // Max permited execution time is 5 seconds, so please use no more then 2s for waiting
         sleep(2)
         self.requestHandler.networkManager.resolveStackAndSend()
     }
-
-
+    
+    
 }
 extension Bundle {
     public var appName: String           { getInfo("CFBundleName")  }
@@ -237,45 +232,50 @@ extension Bundle {
     public var language: String          { getInfo("CFBundleDevelopmentRegion")}
     public var identifier: String        { getInfo("CFBundleIdentifier")}
     public var copyright: String         { getInfo("NSHumanReadableCopyright").replacingOccurrences(of: "\\\\n", with: "\n") }
-
+    
     public var appBuild: String          { getInfo("CFBundleVersion") }
     public var appVersionLong: String    { getInfo("CFBundleShortVersionString") }
     //public var appVersionShort: String { getInfo("CFBundleShortVersion") }
-
+    
     fileprivate func getInfo(_ str: String) -> String { infoDictionary?[str] as? String ?? "⚠️" }
 }
 
 private var defaultProviderDomains: Dictionary<String, String> =
-    [
-        "google-analytics.com": "googleanalytics",
-        "analytics.google.com": "googleanalytics",
-        "api.segment.io": "segment",
-        "segmentapi": "segment",
-        "seg-api": "segment",
-        "segment-api": "segment",
-        // "/.*api\-iam\.intercom\.io\/messenger\/web\/(ping|events|metrics|open).*/": "intercom",
-        "api.amplitude.com": "amplitude",
-        "api2.amplitude.com": "amplitude",
-        "ping.chartbeat.net": "chartbeat",
-        // "/.*api(-eu)?(-js)?.mixpanel\.com.*/": "mixpanel",
-        "trk.kissmetrics.io": "kissmetrics",
-        "ct.pinterest.com": "pinterest",
-        "facebook.com/tr/": "facebook",
-        "track.hubspot.com/__": "hubspot",
-        // "/.*\.heapanalytics\.com\/(h|api).*/": "heap",
-        // "/.*snowplow.*/": "snowplow",
-        // "/.*ws.*\.hotjar\.com\/api\/v2\/client\/ws/%identify_user": "hotjar",
-        // "/.*ws.*\.hotjar\.com\/api\/v2\/client\/ws/%tag_recording": "hotjar",
-        "klaviyo.com/api/track": "klaviyo",
-        "app.pendo.io/data": "pendo",
-        "matomo.php": "matomo",
-        "rs.fullstory.com/rec%8137": "fullstory",
-        "rs.fullstory.com/rec%8193": "fullstory",
-        "logx.optimizely.com/v1/events": "optimizely",
-        "track.customer.io/events/": "customerio",
-        "alb.reddit.com/rp.gif": "reddit",
-        "px.ads.linkedin.com": "linkedin",
-        "/i/adsct": "twitter",
-        "bat.bing.com": "bing",
-        "pdst.fm": "podsights",
-        "app-measurement.com": "googleanalyticsfirebase"    ]
+[
+    "google-analytics.com": "googleanalytics",
+    "analytics.google.com": "googleanalytics",
+    "api.segment.io": "segment",
+    "segmentapi": "segment",
+    "seg-api": "segment",
+    "segment-api": "segment",
+    // "/.*api\-iam\.intercom\.io\/messenger\/web\/(ping|events|metrics|open).*/": "intercom",
+    "api.amplitude.com": "amplitude",
+    "api2.amplitude.com": "amplitude",
+    "ping.chartbeat.net": "chartbeat",
+    "api.mixpanel.com/track": "mixpanel",
+    "api-eu.mixpanel.com/track": "mixpanel",
+    "trk.kissmetrics.io": "kissmetrics",
+    "ct.pinterest.com": "pinterest",
+    "facebook.com/tr/": "facebook",
+    "track.hubspot.com/__": "hubspot",
+    // "/.*\.heapanalytics\.com\/(h|api).*/": "heap",
+    // "/.*snowplow.*/": "snowplow",
+    // "/.*ws.*\.hotjar\.com\/api\/v2\/client\/ws/%identify_user": "hotjar",
+    // "/.*ws.*\.hotjar\.com\/api\/v2\/client\/ws/%tag_recording": "hotjar",
+    "klaviyo.com/api/track": "klaviyo",
+    "app.pendo.io/data": "pendo",
+    "matomo.php": "matomo",
+    "rs.fullstory.com/rec%8137": "fullstory",
+    "rs.fullstory.com/rec%8193": "fullstory",
+    "logx.optimizely.com/v1/events": "optimizely",
+    "track.customer.io/events/": "customerio",
+    "alb.reddit.com/rp.gif": "reddit",
+    "px.ads.linkedin.com": "linkedin",
+    "/i/adsct": "twitter",
+    "bat.bing.com": "bing",
+    "pdst.fm": "podsights",
+    // Firebase
+    "app-measurement.com": "googleanalyticsfirebase",
+    "app-analytics-services.com": "googleanalyticsfirebase",
+    "app-analytics-services-att.com": "googleanalyticsfirebase"
+]
