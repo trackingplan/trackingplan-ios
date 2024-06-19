@@ -6,6 +6,7 @@
 import Foundation
 
 class TrackingplanRequestHandler: SniffableRequestHandler {
+    
     private var config: TrackingplanConfig
     private var updatingSampleRate = false
     let networkManager: TrackingplanNetworkManager
@@ -20,5 +21,3 @@ class TrackingplanRequestHandler: SniffableRequestHandler {
         networkManager.processRequest(urlRequest: alternateRequest)
     }
 }
-
-

@@ -36,22 +36,35 @@ class TrackingplanNetworkManager {
         
         let url = urlRequest.url!.absoluteString
         
+        if url.hasPrefix(config.trackingplanEndpoint) || url.hasPrefix(config.trackingplanConfigEndpoint) {
+            // Ignore requests to trackingplan
+            return
+        }
+        
         guard let provider = self.getAnalyticsProvider(url: urlRequest.url!.absoluteString, providerDomains: self.config.providerDomains) else {
-            logger.debug(message: TrackingplanMessage.message("Ignoring request \(url)"))
+            logger.debug(message: TrackingplanMessage.message("Unknown destination. Ignoring request \(url)"))
+            return
+        }
+        
+        let sampleRate = self.getSampleRate()
+        
+        if sampleRate == 0 {
+            logger.debug(message: TrackingplanMessage.message("Unknown sampling rate. Ignoring request \(url)"))
+            retrieveForEmptySampleRate()
+            return
+        }
+        
+        if !self.config.shouldTrackRequest(rate: sampleRate) {
+            logger.debug(message: TrackingplanMessage.message("Tracking disabled. Ignoring request \(url)"))
             return
         }
         
         logger.debug(message: TrackingplanMessage.message("Processing request \(url)"))
         
-        //Sampling
-        let sampleRate = self.getSampleRate()
-        
-        if(sampleRate == 0){ // sample rate is unknown
-            retrieveForEmptySampleRate()
-        } else if TrackingplanConfig.shouldForceRealTime() {
+        if config.batchSize == 1 {
             let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
             resolveNow(track: track)
-        } else if (self.config.shouldUpdate(rate: sampleRate)) { //Rolling with sampling
+        } else {
             //Append new tracks and check while timing
             let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
             self.trackQueue.enqueue(track)
@@ -60,9 +73,12 @@ class TrackingplanNetworkManager {
         }
     }
     
+    @available(iOS, deprecated, message: "This method will be removed in a future release. Please, use regressionTesting: true in Trackingplan.initialize")
     open func dispatchRealTimeRequest(_ jsonData: String, provider: String) {
+        // FIX: sampleRate might be 0
         let sampleRate = self.getSampleRate()
         let track = TrackingplanTrack(jsonData: jsonData, provider: provider, sampleRate: sampleRate, config: self.config)
+        logger.debug(message: TrackingplanMessage.message("Use of deprecated dispatchRealTimeRequest"))
         resolveNow(track: track)
     }
     
@@ -73,7 +89,30 @@ class TrackingplanNetworkManager {
         let session = URLSession.shared
         let jsonData = try! JSONSerialization.data(withJSONObject: raw, options: [])
         request.httpBody = jsonData
-        let task =  session.dataTask(with: request) {data, response, error in}
+        
+        let logger = self.logger
+        let task =  session.dataTask(with: request) {data, response, error in
+            // Check for errors
+            if let error = error {
+                logger.debug(message: TrackingplanMessage.error("500", "\(error)"))
+                return
+            }
+            
+            // Check if there is a response
+            guard let httpResponse = response as? HTTPURLResponse else {
+                logger.debug(message: TrackingplanMessage.message("Invalid response"))
+                return
+            }
+            
+            // Check if the status code is in the success range (200-299)
+            guard (200...299).contains(httpResponse.statusCode) else {
+                logger.debug(message: TrackingplanMessage.message("HTTP response status code: \(httpResponse.statusCode)"))
+                return
+            }
+            
+            logger.debug(message: TrackingplanMessage.message("Batch sent"))
+        }
+        
         task.resume()
     }
     
@@ -87,8 +126,9 @@ class TrackingplanNetworkManager {
     @objc func resolveStackAndSend() {
         self.didUpdate = false
         let logger = self.logger
-        let deadLineTime = TrackingplanConfig.shouldForceRealTime() ? DispatchTime.now() : TrackingplanQueue.delay
-        trackingQueue.asyncAfter(deadline: deadLineTime) { [weak self] in
+       
+        trackingQueue.asyncAfter(deadline: TrackingplanQueue.delay) { [weak self] in
+            
             guard !(self?.didUpdate ?? true), var request = self?.task(), let rawQueue = self?.trackQueue.retrieveRaw(), !rawQueue.isEmpty else {
                 return
             }
@@ -96,10 +136,9 @@ class TrackingplanNetworkManager {
             self?.trackQueue.cleanUp()
             
             let session = URLSession.shared
-            let jsonData = try! JSONSerialization.data(withJSONObject: rawQueue, options: [])
-            request.httpBody = jsonData
+            request.httpBody = try! JSONSerialization.data(withJSONObject: rawQueue, options: [])
            
-            let task =  session.dataTask(with: request) { (data, response, error) in
+            let task = session.dataTask(with: request) { (data, response, error) in
                 
                 // Check for errors
                 if let error = error {
@@ -126,8 +165,8 @@ class TrackingplanNetworkManager {
                 // print("responseString = \(String(describing: responseString))")
                 
             }
-            task.resume()
             
+            task.resume()
         }
     }
     
@@ -143,14 +182,19 @@ class TrackingplanNetworkManager {
     private func setSampleRate(sampleRate: Int){
         let sampleData = TrackingplanSampleRate(
             sampleRate: sampleRate,
-            sampleRateTimestamp: TrackingplanConfig.getCurrentTimestamp())
+            sampleRateTimestamp: TrackingplanConfig.getCurrentTimestamp()
+        )
         UserDefaults.standard.encode(for: sampleData, using: UserDefaultKey.sampleRate.rawValue)
         UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
     }
     
     private func getSampleRate() -> Int{
-        guard let currentSampleRate = UserDefaults.standard.decode(for: TrackingplanSampleRate.self, using: UserDefaultKey.sampleRate.rawValue)
-        else {
+        
+        if config.ignoreSampling {
+            return 1
+        }
+        
+        guard let currentSampleRate = UserDefaults.standard.decode(for: TrackingplanSampleRate.self, using: UserDefaultKey.sampleRate.rawValue) else {
             return 0
         }
         
@@ -159,58 +203,70 @@ class TrackingplanNetworkManager {
     }
     
     func retrieveForEmptySampleRate() {
-        // retry to download config after X seconds
-        let retryDownloadAfterSeconds = 3600
+        // retry to download config after 5 minutes
+        let retryDownloadAfterSeconds = 300
         if let emptySampleRateTimeStamp = UserDefaultsHelper.getData(type: Int.self, forKey: .sampleRateTimestamp), Int(TrackingplanConfig.getCurrentTimestamp()) - emptySampleRateTimeStamp > retryDownloadAfterSeconds &&  UserDefaultsHelper.getData(type: TrackingplanSampleRate.self, forKey: .sampleRate) != nil {
             retrieveAndSampleRate { _ in}
         }
     }
     func retrieveAndSampleRate(completionHandler:@escaping (Bool)->Void){
         
-        if(self.updatingSampleRate) {
+        if (self.updatingSampleRate) {
             return
         }
-        let sampleRate = self.getSampleRate()
         
-        if(sampleRate == 0) {
-            guard let url = self.config.sampleRateURL() else {
+        if self.getSampleRate() != 0 {
+            return
+        }
+        
+        let logger = self.logger
+
+        logger.debug(message: TrackingplanMessage.message("Sample rate expired. Refresh needed."))
+        
+        guard let url = self.config.sampleRateURL() else {
+            logger.debug(message: TrackingplanMessage.message("Error downloading sample rate due to missing URL."))
+            return
+        }
+        
+        self.updatingSampleRate = true
+        
+        let task = URLSession.shared.dataTask(with: url) {[weak self](data, response, error) in
+            
+            guard let dataResponse = data, error == nil else {
+                let errorMessage = error?.localizedDescription ?? "unknown error"
+                logger.debug(message: TrackingplanMessage.message("Error downloading sample rate \(errorMessage)"))
+                self?.updatingSampleRate = false
+                UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
+                completionHandler(false)
                 return
             }
-            self.updatingSampleRate = true
-            let logger = self.logger
-            let task = URLSession.shared.dataTask(with: url) {[weak self](data, response, error) in
-                guard let dataResponse = data,
-                      error == nil else {
-                    // print(error?.localizedDescription ?? "Response Error")
-                    return
+            
+            do {
+                let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: AnyObject]
+                
+                var sampleRate = 0
+                if let defaultSampleRate = json["sample_rate"] as? Int{
+                    sampleRate = defaultSampleRate
                 }
-                do {
-                    let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: AnyObject]
-                    
-                    var sampleRate = 0
-                    if let defaultSampleRate = json["sample_rate"] as? Int{
-                        sampleRate = defaultSampleRate
-                    }
-                    
-                    if let environmentSampleRate = json["environment_rates"]?[self?.config.environment ?? "" as String] as? Int{
-                        sampleRate = environmentSampleRate
-                    }
-                    
-                    self?.setSampleRate(sampleRate: sampleRate)
-                    self?.updatingSampleRate = false
-                    completionHandler(true)
-                    
-                } catch let error {
-                    if let httpResponse = response as? HTTPURLResponse {
-                        logger.debug(message: TrackingplanMessage.error(String(httpResponse.statusCode), error.localizedDescription))
-                    }
-                    
-                    self?.updatingSampleRate = false
-                    UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
-                    completionHandler(false)
+                
+                if let environmentSampleRate = json["environment_rates"]?[self?.config.environment ?? "" as String] as? Int{
+                    sampleRate = environmentSampleRate
                 }
+                
+                self?.setSampleRate(sampleRate: sampleRate)
+                self?.updatingSampleRate = false
+                completionHandler(true)
+                
+            } catch let error {
+                if let httpResponse = response as? HTTPURLResponse {
+                    logger.debug(message: TrackingplanMessage.error(String(httpResponse.statusCode), error.localizedDescription))
+                }
+                self?.updatingSampleRate = false
+                UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .sampleRateTimestamp)
+                completionHandler(false)
             }
-            task.resume()
         }
+        
+        task.resume()
     }
 }

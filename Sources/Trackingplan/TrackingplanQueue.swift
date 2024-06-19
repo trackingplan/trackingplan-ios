@@ -8,7 +8,7 @@ import Foundation
 
 class TrackingplanQueue {
 
-    static let delay: DispatchTime = DispatchTime.now() + 0.25
+    static let delay: DispatchTime = DispatchTime.now()  + 0.25
     static let ArchiveNotificationName = Notification.Name("com.trackingplan.archive")
     static let defaultArchiveKey = "com.trackingplan.store"
     static let archiveKey = "trackingplanQueue"
@@ -41,8 +41,7 @@ class TrackingplanQueue {
         return false
     }()
 
-    init()
-    {
+    init() {
         self._storage = [TrackingplanTrack]()
         logger = TrackingplanManager.logger
         //Build previous storage
@@ -117,88 +116,57 @@ class TrackingplanQueue {
 
 
 struct TrackingplanTrack: Codable {
-    enum TrackKeys: String, CodingKey {
-        case provider
-        case request
-        case context
-        case tp_id
-        case source_alias
-        case environment
-        case tags
-        case sdk
-        case sdk_version
-        case samplingRate
-        case debug
-    }
-
+    
     let provider: String
     let request: TrackingplanTrackRequest?
-    let context = TrackingplanTrackContext()
+    let context: TrackingplanTrackContext
     let tp_id: String
     let source_alias: String
     let environment: String
     let tags: Dictionary <String, String>
     let sdk: String
     let sdk_version: String
-    let samplingRate: Int
+    let sampling_rate: Int
     let debug: Bool
 
     init (urlRequest: URLRequest, provider: String, sampleRate: Int, config: TrackingplanConfig) {
         self.provider = provider
         self.request = TrackingplanTrackRequest(urlRequest: urlRequest)
+        self.context = TrackingplanTrackContext()
         self.tp_id = config.tp_id
         self.source_alias = config.sourceAlias
         self.environment = config.environment
         self.tags = config.tags
         self.sdk = TrackingplanManager.sdk
         self.sdk_version = TrackingplanManager.sdkVersion
-        self.samplingRate = sampleRate
+        self.sampling_rate = sampleRate
         self.debug = config.debug
     }
 
     init (jsonData: String, provider: String, sampleRate: Int, config: TrackingplanConfig) {
         self.provider = provider
         self.request = TrackingplanTrackRequest(jsonData: jsonData)
+        self.context = TrackingplanTrackContext()
         self.tp_id = config.tp_id
         self.source_alias = config.sourceAlias
         self.environment = config.environment
         self.tags = config.tags
         self.sdk = TrackingplanManager.sdk
         self.sdk_version = TrackingplanManager.sdkVersion
-        self.samplingRate = sampleRate
+        self.sampling_rate = sampleRate
         self.debug = config.debug
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: TrackKeys.self)
-        self.provider = try container.decode(String.self, forKey: .provider)
-        self.request = try container.decodeIfPresent(TrackingplanTrackRequest.self, forKey: .request)
-        self.tp_id = try container.decode(String.self, forKey: .tp_id)
-        self.source_alias = try container.decode(String.self, forKey: .source_alias)
-        self.environment = try container.decode(String.self, forKey: .environment)
-        self.tags = try container.decode(Dictionary.self, forKey: .tags)
-        self.sdk_version = try container.decode(String.self, forKey: .sdk_version)
-        self.sdk = try container.decode(String.self, forKey: .sdk)
-        self.samplingRate = try container.decode(Int.self, forKey: .samplingRate)
-        self.debug = try container.decode(Bool.self, forKey: .debug)
-
     }
 }
 
 
 struct TrackingplanTrackContext: Codable {
-    enum ContextTrackKeys: String, CodingKey {
-        case appVersionLong
-        case appName
-        case appBuildNumber
-    }
-
-    let appVersionLong: String
+    
+    let app_version: String
     let app_name: String
     let app_build_number: String
 
     init() {
-        self.appVersionLong = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
+        self.app_version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
         self.app_name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String
         self.app_build_number = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
     }
@@ -206,13 +174,7 @@ struct TrackingplanTrackContext: Codable {
 }
 
 struct TrackingplanTrackRequest: Codable {
-    enum RequestTrackKeys: String, CodingKey {
-        case endpoint
-        case method
-        case post_payload
-        case post_payload_type
-    }
-
+    
     public enum RequestDataType: String, Codable {
         case string
         case gzip_base64
@@ -234,6 +196,7 @@ struct TrackingplanTrackRequest: Codable {
         self.post_payload = requestHttpBody?.body
         self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
     }
+    
     init(jsonData: String) {
         self.endpoint = "https://www.trackingplan.com/rt"
         // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
@@ -242,18 +205,13 @@ struct TrackingplanTrackRequest: Codable {
         self.post_payload = jsonData
         self.post_payload_type = RequestDataType.string.rawValue
     }
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: RequestTrackKeys.self)
-        self.endpoint = try container.decode(String.self, forKey: .endpoint)
-        self.method = try container.decodeIfPresent(String.self, forKey: .method)
-        self.post_payload = try container.decodeIfPresent(String.self, forKey: .post_payload)
-    }
-
 }
 
 struct TrackingplanSampleRate: Codable {
+    
     var sampleRate: Int
     var sampleRateTimestamp: TimeInterval
+    
     func validSampleRate() -> Int {
         return (TrackingplanConfig.getCurrentTimestamp() < sampleRateTimestamp + 86400) ? self.sampleRate : 0
     }
