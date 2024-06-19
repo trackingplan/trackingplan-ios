@@ -64,7 +64,7 @@ All set!
 ## Using tags
 Tags are a pair of key-value strings that will be used for tagging data sent to Trackingplan. They
 can be used from your Trackingplan dashboard for debuging purposes, for example, to filter warnings
-affecting a specific app version, contry and so on.
+affecting a specific app version, country and so on.
 
 ### Example
 ```swift
