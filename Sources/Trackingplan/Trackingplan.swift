@@ -51,7 +51,6 @@ open class Trackingplan {
             trackingplanConfigEndpoint: trackingplanConfigEndpoint
         )
     }
-
 }
 
 
@@ -64,21 +63,14 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.1.0"
+    public static let sdkVersion = "1.1.1"
 
     public static let sharedInstance = TrackingplanManager()
     private var mainInstance: TrackingplanInstance?
     
     @available(iOS, deprecated, message: "This method will be removed in a future release. Please, use regressionTesting: true in Trackingplan.initialize")
     public func dispatchRealTime(jsonData: NSDictionary, provider: String) {
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: jsonData)
-            if let json = String(data: jsonData, encoding: .utf8) {
-                self.mainInstance?.dispatchRealTime(jsonData: json, provider: provider)
-            }
-        } catch {
-            // Empty catch
-        }
+        TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Use of deprecated dispatchRealTimeRequest ignored. Please, use regressionTesting: true in Trackingplan.initialize"))
     }
 
     func initialize(
@@ -92,6 +84,11 @@ open class TrackingplanManager  {
         trackingplanEndpoint: String,
         trackingplanConfigEndpoint: String) -> TrackingplanInstance?
     {
+        if mainInstance != nil {
+            TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan already initialized. Action ignored"))
+            return mainInstance
+        }
+        
         if debug {
             TrackingplanManager.logger.enableLogging()
         }
@@ -118,6 +115,9 @@ open class TrackingplanManager  {
         }
         
         if regressionTestingEnabled {
+            // Queue is not used when regression testing is enabled but there might be events from other execution.
+            // So discard any previous archived raw tracks to avoid unwanted events.
+            TrackingplanQueue.sharedInstance.discardArchive()
             
             config.batchSize = 1
             config.ignoreSampling = true
@@ -156,6 +156,9 @@ open class TrackingplanManager  {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan regression testing mode is enabled"))
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Using additional configuration: \(extraConfig)"))
         }
+        
+        // Restore any intercepted events from a previous execution
+        TrackingplanQueue.sharedInstance.unarchive()
 
         mainInstance = TrackingplanInstance(config: config)
         
@@ -182,10 +185,9 @@ open class TrackingplanInstance {
         setupObservers()
         start()
     }
-
-    @available(iOS, deprecated, message: "This method will be removed in a future release. Please, use regressionTesting: true in Trackingplan.initialize")
-    public func dispatchRealTime(jsonData: String, provider: String) {
-        self.requestHandler.networkManager.dispatchRealTimeRequest(jsonData, provider: provider)
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     fileprivate func setupObservers() {
@@ -199,12 +201,10 @@ open class TrackingplanInstance {
                                                name: UIApplication.willEnterForegroundNotification,
                                                object: nil)
 
-
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(applicationDidEnterBackground(_:)),
                                                name: UIApplication.didEnterBackgroundNotification,
                                                object: nil)
-
     }
 
     fileprivate func start(){
@@ -223,11 +223,6 @@ open class TrackingplanInstance {
         NetworkInterceptor.shared.stopRecording()
     }
 
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-
-
     @discardableResult
     static func sharedUIApplication() -> UIApplication? {
         guard let sharedApplication = UIApplication.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? UIApplication
@@ -238,13 +233,12 @@ open class TrackingplanInstance {
     }
 
     @objc private func applicationWillEnterForeground(_ notification: Notification) {
-        NotificationCenter.default.post(name: TrackingplanNetworkManager.SendNotificationName, object: false)
         self.requestHandler.networkManager.retrieveForEmptySampleRate()
     }
 
     @objc private func applicationWillTerminate(_ notification: Notification) {
         if config.batchSize > 1 {
-            NotificationCenter.default.post(name: TrackingplanQueue.ArchiveNotificationName, object: nil)
+            TrackingplanQueue.sharedInstance.archive()
         }
     }
 

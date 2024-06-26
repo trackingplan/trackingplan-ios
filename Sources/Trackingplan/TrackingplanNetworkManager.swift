@@ -7,9 +7,8 @@ import Foundation
 
 class TrackingplanNetworkManager {
     
-    static let SendNotificationName = Notification.Name("com.trackingplan.sendQueue")
     fileprivate let config: TrackingplanConfig
-    fileprivate var trackQueue: TrackingplanQueue = TrackingplanQueue()
+    fileprivate var trackQueue: TrackingplanQueue = TrackingplanQueue.sharedInstance
     
     func task() -> URLRequest {
         let url = URL(string: self.config.trackingplanEndpoint + self.config.tp_id)
@@ -60,28 +59,17 @@ class TrackingplanNetworkManager {
         }
         
         logger.debug(message: TrackingplanMessage.message("Processing request \(url)"))
+        let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
         
         if config.batchSize == 1 {
-            let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
             resolveNow(track: track)
         } else {
-            //Append new tracks and check while timing
-            let track = TrackingplanTrack(urlRequest: urlRequest, provider: provider, sampleRate: sampleRate, config: self.config)
+            // Append new tracks and check while timing
             self.trackQueue.enqueue(track)
             self.didUpdate = true
             checkAndSend()
         }
     }
-    
-    @available(iOS, deprecated, message: "This method will be removed in a future release. Please, use regressionTesting: true in Trackingplan.initialize")
-    open func dispatchRealTimeRequest(_ jsonData: String, provider: String) {
-        // FIX: sampleRate might be 0
-        let sampleRate = self.getSampleRate()
-        let track = TrackingplanTrack(jsonData: jsonData, provider: provider, sampleRate: sampleRate, config: self.config)
-        logger.debug(message: TrackingplanMessage.message("Use of deprecated dispatchRealTimeRequest"))
-        resolveNow(track: track)
-    }
-    
     
     private func resolveNow(track: TrackingplanTrack) {
         let raw = [track.dictionary!]
@@ -126,7 +114,7 @@ class TrackingplanNetworkManager {
     @objc func resolveStackAndSend() {
         self.didUpdate = false
         let logger = self.logger
-       
+                
         trackingQueue.asyncAfter(deadline: TrackingplanQueue.delay) { [weak self] in
             
             guard !(self?.didUpdate ?? true), var request = self?.task(), let rawQueue = self?.trackQueue.retrieveRaw(), !rawQueue.isEmpty else {
@@ -137,7 +125,7 @@ class TrackingplanNetworkManager {
             
             let session = URLSession.shared
             request.httpBody = try! JSONSerialization.data(withJSONObject: rawQueue, options: [])
-           
+            
             let task = session.dataTask(with: request) { (data, response, error) in
                 
                 // Check for errors
@@ -160,7 +148,7 @@ class TrackingplanNetworkManager {
                 
                 logger.debug(message: TrackingplanMessage.message("Batch sent"))
                 
-                //Cleanup queue when success only
+                // Cleanup queue when success only
                 // let responseString = String(data: data, encoding: .utf8)
                 // print("responseString = \(String(describing: responseString))")
                 
@@ -220,7 +208,7 @@ class TrackingplanNetworkManager {
         }
         
         let logger = self.logger
-
+        
         logger.debug(message: TrackingplanMessage.message("Sample rate expired. Refresh needed."))
         
         guard let url = self.config.sampleRateURL() else {
