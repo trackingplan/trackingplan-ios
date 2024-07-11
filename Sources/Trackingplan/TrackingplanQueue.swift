@@ -7,11 +7,7 @@ import Foundation
 
 
 class TrackingplanQueue {
-    
-    static let delay: DispatchTime = DispatchTime.now()  + 0.25
-    static let defaultArchiveKey = "com.trackingplan.store"
-    static let archiveKey = "trackingplanQueue"
-    
+        
     public static let sharedInstance = TrackingplanQueue()
     
     let storageQueue = DispatchQueue(label: "com.trackingplan.storage", attributes: .concurrent)
@@ -34,14 +30,6 @@ class TrackingplanQueue {
     
     private let semaphore = DispatchSemaphore(value: 1)
     
-    fileprivate let validArchive: Bool = {
-        // Check is last archive tracks ar older than 20 min
-        if let lastUnarchiveDate = UserDefaultsHelper.getData(type: Int.self, forKey: .lastArchivedDate) {
-            return Int(TrackingplanConfig.getCurrentTimestamp())  < lastUnarchiveDate + 1200
-        }
-        return false
-    }()
-    
     init() {
         self._storage = [TrackingplanTrack]()
         logger = TrackingplanManager.logger
@@ -57,49 +45,20 @@ class TrackingplanQueue {
         semaphore.signal()
     }
     
-    func dequeue() -> TrackingplanTrack? {
-        semaphore.wait()
-        defer { semaphore.signal() }
-        return self.storage.isEmpty ? nil : self.storage.removeFirst()
-    }
-    
-    
-    func archive() {
-        UserDefaults.standard.encode(for: self.storage, using: TrackingplanQueue.defaultArchiveKey)
-        // Save timestamp for archive
-        UserDefaultsHelper.setData(value: Int(TrackingplanConfig.getCurrentTimestamp()), key: .lastArchivedDate)
-        logger.debug(message: TrackingplanMessage.message("Storage archive success count: \(self.storage.count) "))
-    }
-    
-    func unarchive() {
-        guard let tracksArray = UserDefaults.standard.decode(for: [TrackingplanTrack].self, using: TrackingplanQueue.defaultArchiveKey), validArchive else {
-            return
-        }
-        
-        logger.debug(message: TrackingplanMessage.message("Storage unarchive success count: \(tracksArray.count) "))
-        self.storage.append(contentsOf:tracksArray)
-        discardArchive()
-    }
-    
-    func discardArchive() {
-        UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)
-        // Remove timestamp for archive
-        UserDefaultsHelper.removeData(key: .lastArchivedDate)
-    }
-    
-    func retrieveRaw() -> [[String:Any]]? {
+    func retrieveRaw() -> [[String:Any]] {
         defer {
-            self.semaphore.signal()
+            semaphore.signal()
         }
-        self.semaphore.wait()
-        return self.storage.map({$0.dictionary!})
+        semaphore.wait()
+        let tracks = storage.map({$0.dictionary!})
+        storage.removeAll()
+        return tracks
     }
     
     func cleanUp() {
-        self.semaphore.wait()
-        self.storage.removeAll()
-        self.semaphore.signal()
-        UserDefaults.standard.setValue(nil, forKey: TrackingplanQueue.defaultArchiveKey)
+        semaphore.wait()
+        storage.removeAll()
+        semaphore.signal()
     }
 }
 
@@ -112,29 +71,36 @@ struct TrackingplanTrack: Codable {
     let tp_id: String
     let source_alias: String
     let environment: String
-    let tags: Dictionary <String, String>
+    let tags: Dictionary<String, String>?
     let ts: Int64
     let sdk: String
     let sdk_version: String
     let sampling_rate: Int
+    let session_id: String
     let debug: Bool
     
-    init(urlRequest: URLRequest, provider: String, sampleRate: Int, config: TrackingplanConfig) {
+    init(request: TrackingplanTrackRequest, provider: String, sampleRate: Int, sessionId: String, config: TrackingplanConfig) {
         self.provider = provider
-        self.request = TrackingplanTrackRequest(urlRequest: urlRequest)
+        self.request = request
         self.context = TrackingplanTrackContext()
         self.tp_id = config.tp_id
         self.source_alias = config.sourceAlias
         self.environment = config.environment
-        self.tags = config.tags
         self.ts = Int64(Date().timeIntervalSince1970 * 1000) // Assume that raw track is created when the request is intercepted
         self.sdk = TrackingplanManager.sdk
         self.sdk_version = TrackingplanManager.sdkVersion
         self.sampling_rate = sampleRate
+        self.session_id = sessionId
         self.debug = config.debug
+        
+        // Optional tags
+        if !config.tags.isEmpty {
+            self.tags = config.tags
+        } else {
+            self.tags = nil
+        }
     }
 }
-
 
 struct TrackingplanTrackContext: Codable {
     
@@ -172,16 +138,21 @@ struct TrackingplanTrackRequest: Codable {
         let requestHttpBody = urlRequest.getHttpBody()
         self.post_payload = requestHttpBody?.body
         self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
-        self.request_id = UUID().uuidString
+        self.request_id = UUID().uuidString.lowercased()
     }
-}
-
-struct TrackingplanSampleRate: Codable {
     
-    var sampleRate: Int
-    var sampleRateTimestamp: TimeInterval
-    
-    func validSampleRate() -> Int {
-        return (TrackingplanConfig.getCurrentTimestamp() < sampleRateTimestamp + 86400) ? self.sampleRate : 0
+    // Used to create Trackingplan events
+    init?(eventName: String) {
+        let jsonObject: [String: String] = ["event_name": "new_dau"]
+        if let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            self.post_payload = jsonString
+            self.post_payload_type = RequestDataType.string.rawValue
+        } else {
+            return nil
+        }
+        self.endpoint = "TRACKINGPLAN"
+        self.method = "POST"
+        self.request_id = UUID().uuidString.lowercased()
     }
 }

@@ -6,18 +6,19 @@
 import Foundation
 
 class TrackingplanRequestHandler: SniffableRequestHandler {
-    
-    private var config: TrackingplanConfig
-    private var updatingSampleRate = false
-    let networkManager: TrackingplanNetworkManager
-   
-    public init(config: TrackingplanConfig, queue: DispatchQueue){
-        self.config = config
-        self.networkManager = TrackingplanNetworkManager(config: config, queue: queue)
+
+    private let networkManager: TrackingplanNetworkManager
+    private let serialQueue: DispatchQueue
+
+    init(serialQueue: DispatchQueue, networkManager: TrackingplanNetworkManager) {
+        self.networkManager = networkManager
+        self.serialQueue = serialQueue
     }
-    
+
     public func sniffRequest(urlRequest: URLRequest) {
         let alternateRequest = URLRequestFactory().createURLRequest(originalUrlRequest: urlRequest)
-        networkManager.processRequest(urlRequest: alternateRequest)
+        serialQueue.async {
+            self.networkManager.processRequest(urlRequest: alternateRequest)
+        }
     }
 }

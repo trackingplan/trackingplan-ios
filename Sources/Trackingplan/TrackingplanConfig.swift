@@ -8,16 +8,15 @@ import Foundation
 public struct TrackingplanConfig {
     var tp_id: String
     var environment: String
-    var tags: Dictionary <String, String>
+    var tags: Dictionary<String, String>
     var sourceAlias: String
     var debug: Bool
     var trackingplanEndpoint: String
     var trackingplanConfigEndpoint: String
     var ignoreSampling: Bool
-    var providerDomains: Dictionary <String, String>
+    var providerDomains: Dictionary<String, String>
     var batchSize: Int
 }
-
 
 public enum TrackingplanTag: String, CaseIterable {
 
@@ -78,44 +77,5 @@ extension TrackingplanConfig {
 
     func sampleRateURL() -> URL? {
        return URL(string:trackingplanConfigEndpoint + "config-" + tp_id + ".json")
-    }
-}
-
-// Rolling to send same value every 24h set
-extension TrackingplanConfig {
-    public func shouldTrackRequest(rate: Int) -> Bool {
-        
-        if self.ignoreSampling {
-            return true
-        }
-        
-        // Grab last date value
-        if let lastDate = UserDefaultsHelper.getData(type: TimeInterval.self, forKey: .rolledDiceDate) {
-            if TrackingplanConfig.getCurrentTimestamp() > lastDate + 86400 {
-                //Logger.debug(message: TrackingplanMessage.message("\(String(describing: TrackingplanConfig.self)) Reset roll dice - last timestamp: \(lastDate)"))
-                return setRandomValue(rate: rate)
-            } else {
-                let currentValue = UserDefaultsHelper.getData(type: Bool.self, forKey: .rolleDiceValue) ?? true
-                //Logger.debug(message: TrackingplanMessage.message("Using existing rolling value: \(currentValue) "))
-                return currentValue
-            }
-        } else {
-            return setRandomValue(rate: rate)
-        }
-    }
-
-    @discardableResult
-    fileprivate func setRandomValue (rate: Int) -> Bool {
-        let randomNumber = Float(arc4random()) / Float(UInt32.max)
-
-        let newTs = TrackingplanConfig.getCurrentTimestamp()
-        UserDefaultsHelper.setData(value: newTs, key: .rolledDiceDate)
-        //Logger.debug(message: TrackingplanMessage.message("Rolled new timestamp: \(newTs) "))
-
-        let rolled = randomNumber < (1 / Float(rate))
-        UserDefaultsHelper.setData(value: rolled, key: .rolleDiceValue)
-        //Logger.debug(message: TrackingplanMessage.message("Rolled new value: \(rolled) "))
-
-        return rolled
     }
 }

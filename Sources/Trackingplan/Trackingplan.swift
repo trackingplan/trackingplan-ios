@@ -32,7 +32,7 @@ open class Trackingplan {
         tpId: String = "",
         environment: String = "PRODUCTION",
         tags: Dictionary <String, String> = [:],
-        sourceAlias: String = "",
+        sourceAlias: String = "ios",
         customDomains: Dictionary <String, String> = [:],
         debug: Bool = false,
         regressionTesting: Bool = false,
@@ -53,7 +53,6 @@ open class Trackingplan {
     }
 }
 
-
 open class TrackingplanManager  {
 
     internal static let logger = TrackingPlanLogger(tagName: "Trackingplan")
@@ -63,11 +62,12 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.1.1"
+    public static let sdkVersion = "1.2.0"
 
     public static let sharedInstance = TrackingplanManager()
+
     private var mainInstance: TrackingplanInstance?
-    
+
     @available(iOS, deprecated, message: "This method will be removed in a future release. Please, use regressionTesting: true in Trackingplan.initialize")
     public func dispatchRealTime(jsonData: NSDictionary, provider: String) {
         TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Use of deprecated dispatchRealTimeRequest ignored. Please, use regressionTesting: true in Trackingplan.initialize"))
@@ -88,7 +88,7 @@ open class TrackingplanManager  {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan already initialized. Action ignored"))
             return mainInstance
         }
-        
+
         if debug {
             TrackingplanManager.logger.enableLogging()
         }
@@ -103,9 +103,9 @@ open class TrackingplanManager  {
             trackingplanConfigEndpoint: trackingplanConfigEndpoint,
             ignoreSampling: false,
             providerDomains: defaultProviderDomains.merging(customDomains){ (_, new) in new },
-            batchSize: TrackingplanManager.defaultBatchSize)
+            batchSize: TrackingplanManager.defaultBatchSize
+        )
 
-    
         // Check if regression testing is enabled using the new regressionTesting option. Fallback to
         // environment variables for backwards compatibility.
         var regressionTestingEnabled = regressionTesting
@@ -113,35 +113,32 @@ open class TrackingplanManager  {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Enabling regression testing because test_session_name was set through environment variables"))
             regressionTestingEnabled = true
         }
-        
+
         if regressionTestingEnabled {
-            // Queue is not used when regression testing is enabled but there might be events from other execution.
-            // So discard any previous archived raw tracks to avoid unwanted events.
-            TrackingplanQueue.sharedInstance.discardArchive()
             
             config.batchSize = 1
             config.ignoreSampling = true
-            
+
             // Setup environment and tags for regression testing using TP_ENVIRONMENT and TP_TAG_X environment variables.
             // If not set, use the provided environment and tags as a fallback.
             config.environment = TrackingplanConfig.resolveEnvironment() ?? environment
             config.tags = TrackingplanConfig.resolveTags(tags)
-            
+
             if config.environment == "PRODUCTION" {
                 TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan initialization failed. Regression testing is not compatible with PRODUCTION environment."))
                 return nil
             }
-            
+
             if !config.tags.keys.contains("test_session_name") {
                 TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan initialization failed. Regression testing missing test_session_name."))
                 return nil
             }
-            
+
             if !config.tags.keys.contains("test_title") {
                 TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan initialization failed. Regression testing missing test_title."))
                 return nil
             }
-            
+
             struct ExtraOptions {
                 var environment: String
                 var testSessionName: String
@@ -152,106 +149,24 @@ open class TrackingplanManager  {
                                            testSessionName: config.tags["test_session_name"]!,
                                            testTitle: config.tags["test_title"]!,
                                            batchSize: config.batchSize)
-            
+
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan regression testing mode is enabled"))
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Using additional configuration: \(extraConfig)"))
         }
-        
-        // Restore any intercepted events from a previous execution
-        TrackingplanQueue.sharedInstance.unarchive()
 
-        mainInstance = TrackingplanInstance(config: config)
+        // Start
+        if let instance = TrackingplanInstance(config: config) {
+            mainInstance = instance
+            mainInstance?.start()
+            TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan v\(TrackingplanManager.sdkVersion) started"))
+        } else {
+            TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan start failed"))
+        }
         
-        TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan v\(TrackingplanManager.sdkVersion) started"))
-
         return mainInstance
     }
 }
 
-open class TrackingplanInstance {
-    private static let interceptor = NetworkInterceptor()
-    private var requestHandler: TrackingplanRequestHandler
-    private var config: TrackingplanConfig
-
-    var trackingQueue: DispatchQueue!
-    var networkQueue: DispatchQueue!
-
-    init(config: TrackingplanConfig) {
-        let label = "com.trackingplan.\(config.tp_id)"
-        trackingQueue = DispatchQueue(label: "\(label).tracking)", qos: .utility)
-        networkQueue = DispatchQueue(label: "\(label).network)", qos: .utility)
-        self.requestHandler = TrackingplanRequestHandler(config: config, queue: trackingQueue)
-        self.config = config
-        setupObservers()
-        start()
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    fileprivate func setupObservers() {
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(applicationWillTerminate(_:)),
-                                               name: UIApplication.willTerminateNotification,
-                                               object: nil)
-
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(applicationWillEnterForeground(_:)),
-                                               name: UIApplication.willEnterForegroundNotification,
-                                               object: nil)
-
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(applicationDidEnterBackground(_:)),
-                                               name: UIApplication.didEnterBackgroundNotification,
-                                               object: nil)
-    }
-
-    fileprivate func start(){
-        let requestSniffers: [RequestSniffer] = [
-            RequestSniffer(requestEvaluator: AnyHttpRequestEvaluator(), handlers: [
-                self.requestHandler
-            ])
-        ]
-
-        let networkConfig = NetworkInterceptorConfig(requestSniffers: requestSniffers)
-        NetworkInterceptor.shared.setup(config: networkConfig)
-        NetworkInterceptor.shared.startRecording()
-    }
-
-    public func stop(){
-        NetworkInterceptor.shared.stopRecording()
-    }
-
-    @discardableResult
-    static func sharedUIApplication() -> UIApplication? {
-        guard let sharedApplication = UIApplication.perform(NSSelectorFromString("sharedApplication"))?.takeUnretainedValue() as? UIApplication
-        else {
-            return nil
-        }
-        return sharedApplication
-    }
-
-    @objc private func applicationWillEnterForeground(_ notification: Notification) {
-        self.requestHandler.networkManager.retrieveForEmptySampleRate()
-    }
-
-    @objc private func applicationWillTerminate(_ notification: Notification) {
-        if config.batchSize > 1 {
-            TrackingplanQueue.sharedInstance.archive()
-        }
-    }
-
-    @objc private func applicationDidEnterBackground(_ notification: Notification) {
-        // Max permited execution time is 5 seconds, so please use no more then 2s for waiting
-        if config.batchSize > 1 {
-            sleep(2)
-            self.requestHandler.networkManager.resolveStackAndSend()
-        }
-    }
-
-
-}
 extension Bundle {
     public var appName: String           { getInfo("CFBundleName")  }
     public var displayName: String       { getInfo("CFBundleDisplayName")}
@@ -277,6 +192,8 @@ private var defaultProviderDomains: Dictionary<String, String> =
     // "/.*api\-iam\.intercom\.io\/messenger\/web\/(ping|events|metrics|open).*/": "intercom",
     "api.amplitude.com": "amplitude",
     "api2.amplitude.com": "amplitude",
+    "braze.com/api": "braze",
+    "braze.eu/api": "braze",
     "ping.chartbeat.net": "chartbeat",
     "api.mixpanel.com/track": "mixpanel",
     "api-eu.mixpanel.com/track": "mixpanel",

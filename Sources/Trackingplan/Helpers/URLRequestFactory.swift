@@ -59,5 +59,3 @@ class URLRequestFactory {
         return redirectedRequest
     }
 }
-
-
