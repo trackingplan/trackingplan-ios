@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UIKit
 
 
 class TrackingplanQueue {
@@ -107,11 +108,22 @@ struct TrackingplanTrackContext: Codable {
     let app_version: String
     let app_name: String
     let app_build_number: String
+    let language: String
+    let platform: String
+    let device: String
     
     init() {
         self.app_version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
         self.app_name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String
         self.app_build_number = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
+        self.language = Locale.preferredLanguages.first ?? "unknown"
+        self.platform = "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
+        
+        if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] == nil {
+            self.device = UIDevice.current.name
+        } else {
+            self.device = "\(UIDevice.current.name) (simulator)"
+        }
     }
 }
 
