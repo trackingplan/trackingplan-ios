@@ -246,7 +246,15 @@ class TrackingplanNetworkManager {
     }
     
     private func task() -> URLRequest {
-        let url = URL(string: config.trackingplanEndpoint + config.tp_id)
+        
+        var endpoint = config.trackingplanEndpoint + config.tp_id
+        
+        if config.testing {
+            let ts = Int64(Date().timeIntervalSince1970 * 1000)
+            endpoint = "\(endpoint)?t=\(ts)"
+        }
+        
+        let url = URL(string: endpoint)
         var request = URLRequest(url: url!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

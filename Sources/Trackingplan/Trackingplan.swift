@@ -92,20 +92,7 @@ open class TrackingplanManager  {
         if debug {
             TrackingplanManager.logger.enableLogging()
         }
-
-        var config = TrackingplanConfig(
-            tp_id: tp_id,
-            environment: environment,
-            tags: tags,
-            sourceAlias: sourceAlias,
-            debug: debug,
-            trackingplanEndpoint: trackingplanEndpoint,
-            trackingplanConfigEndpoint: trackingplanConfigEndpoint,
-            ignoreSampling: false,
-            providerDomains: defaultProviderDomains.merging(customDomains){ (_, new) in new },
-            batchSize: TrackingplanManager.defaultBatchSize
-        )
-
+        
         // Check if regression testing is enabled using the new regressionTesting option. Fallback to
         // environment variables for backwards compatibility.
         var regressionTestingEnabled = regressionTesting
@@ -113,6 +100,20 @@ open class TrackingplanManager  {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Enabling regression testing because test_session_name was set through environment variables"))
             regressionTestingEnabled = true
         }
+
+        var config = TrackingplanConfig(
+            tp_id: tp_id,
+            environment: environment,
+            tags: tags,
+            sourceAlias: sourceAlias,
+            debug: debug,
+            testing: regressionTestingEnabled,
+            trackingplanEndpoint: trackingplanEndpoint,
+            trackingplanConfigEndpoint: trackingplanConfigEndpoint,
+            ignoreSampling: false,
+            providerDomains: defaultProviderDomains.merging(customDomains){ (_, new) in new },
+            batchSize: TrackingplanManager.defaultBatchSize
+        )
 
         if regressionTestingEnabled {
             
@@ -176,7 +177,6 @@ extension Bundle {
 
     public var appBuild: String          { getInfo("CFBundleVersion") }
     public var appVersionLong: String    { getInfo("CFBundleShortVersionString") }
-    //public var appVersionShort: String { getInfo("CFBundleShortVersion") }
 
     fileprivate func getInfo(_ str: String) -> String { infoDictionary?[str] as? String ?? "⚠️" }
 }
@@ -189,7 +189,6 @@ private var defaultProviderDomains: Dictionary<String, String> =
     "segmentapi": "segment",
     "seg-api": "segment",
     "segment-api": "segment",
-    // "/.*api\-iam\.intercom\.io\/messenger\/web\/(ping|events|metrics|open).*/": "intercom",
     "api.amplitude.com": "amplitude",
     "api2.amplitude.com": "amplitude",
     "braze.com/api": "braze",
@@ -201,10 +200,6 @@ private var defaultProviderDomains: Dictionary<String, String> =
     "ct.pinterest.com": "pinterest",
     "facebook.com/tr/": "facebook",
     "track.hubspot.com/__": "hubspot",
-    // "/.*\.heapanalytics\.com\/(h|api).*/": "heap",
-    // "/.*snowplow.*/": "snowplow",
-    // "/.*ws.*\.hotjar\.com\/api\/v2\/client\/ws/%identify_user": "hotjar",
-    // "/.*ws.*\.hotjar\.com\/api\/v2\/client\/ws/%tag_recording": "hotjar",
     "klaviyo.com/api/track": "klaviyo",
     "app.pendo.io/data": "pendo",
     "matomo.php": "matomo",

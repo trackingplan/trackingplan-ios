@@ -11,6 +11,7 @@ public struct TrackingplanConfig {
     var tags: Dictionary<String, String>
     var sourceAlias: String
     var debug: Bool
+    var testing: Bool
     var trackingplanEndpoint: String
     var trackingplanConfigEndpoint: String
     var ignoreSampling: Bool
