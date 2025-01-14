@@ -62,7 +62,7 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.3.0"
+    public static let sdkVersion = "1.4.0"
 
     public static let sharedInstance = TrackingplanManager()
 
@@ -183,8 +183,6 @@ extension Bundle {
 
 private var defaultProviderDomains: Dictionary<String, String> =
 [
-    "google-analytics.com": "googleanalytics",
-    "analytics.google.com": "googleanalytics",
     "api.segment.io": "segment",
     "segmentapi": "segment",
     "seg-api": "segment",
