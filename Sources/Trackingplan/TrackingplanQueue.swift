@@ -8,14 +8,14 @@ import UIKit
 
 
 class TrackingplanQueue {
-        
+
     public static let sharedInstance = TrackingplanQueue()
-    
+
     let storageQueue = DispatchQueue(label: "com.trackingplan.storage", attributes: .concurrent)
     let logger: TrackingPlanLogger
-    
+
     private var _storage: [TrackingplanTrack]
-    
+
     var storage: [TrackingplanTrack] {
         get {
             storageQueue.sync {
@@ -28,24 +28,24 @@ class TrackingplanQueue {
             }
         }
     }
-    
+
     private let semaphore = DispatchSemaphore(value: 1)
-    
+
     init() {
         self._storage = [TrackingplanTrack]()
         logger = TrackingplanManager.logger
     }
-    
+
     func taskCount() -> Int {
         return self.storage.count
     }
-    
+
     func enqueue(_ element: TrackingplanTrack) -> Void {
         semaphore.wait()
         self.storage.append(element)
         semaphore.signal()
     }
-    
+
     func retrieveRaw() -> [[String:Any]] {
         defer {
             semaphore.signal()
@@ -55,7 +55,7 @@ class TrackingplanQueue {
         storage.removeAll()
         return tracks
     }
-    
+
     func cleanUp() {
         semaphore.wait()
         storage.removeAll()
@@ -65,7 +65,7 @@ class TrackingplanQueue {
 
 
 struct TrackingplanTrack: Codable {
-    
+
     let provider: String
     let request: TrackingplanTrackRequest?
     let context: TrackingplanTrackContext
@@ -79,7 +79,7 @@ struct TrackingplanTrack: Codable {
     let sampling_rate: Int
     let session_id: String
     let debug: Bool
-    
+
     init(request: TrackingplanTrackRequest, provider: String, sampleRate: Int, sessionId: String, config: TrackingplanConfig) {
         self.provider = provider
         self.request = request
@@ -93,7 +93,7 @@ struct TrackingplanTrack: Codable {
         self.sampling_rate = sampleRate
         self.session_id = sessionId
         self.debug = config.debug
-        
+
         // Optional tags
         if !config.tags.isEmpty {
             self.tags = config.tags
@@ -104,21 +104,21 @@ struct TrackingplanTrack: Codable {
 }
 
 struct TrackingplanTrackContext: Codable {
-    
+
     let app_version: String
     let app_name: String
     let app_build_number: String
     let language: String
     let platform: String
     let device: String
-    
+
     init() {
         self.app_version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
         self.app_name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String
         self.app_build_number = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
         self.language = Locale.preferredLanguages.first ?? "unknown"
         self.platform = "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
-        
+
         if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] == nil {
             self.device = UIDevice.current.name
         } else {
@@ -128,19 +128,19 @@ struct TrackingplanTrackContext: Codable {
 }
 
 struct TrackingplanTrackRequest: Codable {
-    
+
     public enum RequestDataType: String, Codable {
         case string
         case gzip_base64
         case unknown
     }
-    
+
     let endpoint: String
     let method: String?
     let post_payload: String?
     var post_payload_type: String = RequestDataType.string.rawValue
     let request_id: String
-    
+
     init(urlRequest: URLRequest) {
         // The original provider endpoint URL
         self.endpoint = urlRequest.url!.absoluteString
@@ -152,10 +152,10 @@ struct TrackingplanTrackRequest: Codable {
         self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
         self.request_id = UUID().uuidString.lowercased()
     }
-    
+
     // Used to create Trackingplan events
     init?(eventName: String) {
-        let jsonObject: [String: String] = ["event_name": "new_dau"]
+        let jsonObject: [String: String] = ["event_name": eventName]
         if let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             self.post_payload = jsonString
