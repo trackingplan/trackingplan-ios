@@ -6,10 +6,10 @@ Pod::Spec.new do |s|
   s.platform          = :ios, '12.0'
   s.ios.deployment_target = '13.0'
   s.swift_version = '5.0'
-  #s.license           = {
-  #  :type => 'MIT',
-  #  :file => 'LICENSE'
-  #}
+  s.license           = {
+    :type => 'Copyright',
+    :text => 'Copyright © Trackingplan. All rights reserved. Private license.'
+  }
   s.author            = {
   'Trackingplan Inc' => 'team@trackingplan.com'
   }
