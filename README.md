@@ -79,6 +79,24 @@ Trackingplan.initialize(
 )
 ```
 
+### Updating tags after initialization
+You can update tags dynamically after the SDK has been initialized. This is useful for adding or updating contextual information as your app state changes.
+
+```swift
+// Update tags at any point after initialization
+Trackingplan.updateTags([
+    "user_type": "premium",
+    "experiment_variant": "B",
+    "country": "uk"  // This will override the previous "us" value
+])
+```
+
+The `updateTags` method:
+- Merges new tags with existing ones
+- Overwrites values for existing keys
+- Can be called from any thread (thread-safe)
+- Takes effect immediately for all subsequent tracked events
+
 ### Environment
 You can set environment in runtime using the tag builder environment
 app.launchEnvironment.updateValue(value, forKey: TrackingplanTag.environment.rawValue)

@@ -51,6 +51,17 @@ open class Trackingplan {
             trackingplanConfigEndpoint: trackingplanConfigEndpoint
         )
     }
+    
+    /**
+     Updates the tags in the current configuration by merging new tags with existing ones.
+     This method can be called from any thread and will be executed safely in the Trackingplan thread.
+     
+     - Parameters:
+        - newTags: The tags to add or update. New tags will be merged with existing tags, with new values overwriting existing ones for the same keys.
+     */
+    open class func updateTags(_ newTags: Dictionary<String, String>) {
+        TrackingplanManager.sharedInstance.updateTags(newTags)
+    }
 }
 
 open class TrackingplanManager  {
@@ -66,7 +77,7 @@ open class TrackingplanManager  {
 
     public static let sharedInstance = TrackingplanManager()
 
-    private var mainInstance: TrackingplanInstance?
+    internal var mainInstance: TrackingplanInstance?
 
     @available(iOS, deprecated, message: "This method will be removed in a future release. Please, use regressionTesting: true in Trackingplan.initialize")
     public func dispatchRealTime(jsonData: NSDictionary, provider: String) {
@@ -165,6 +176,14 @@ open class TrackingplanManager  {
         }
         
         return mainInstance
+    }
+    
+    func updateTags(_ newTags: Dictionary<String, String>) {
+        guard let instance = mainInstance else {
+            TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Cannot update tags. Trackingplan was not initialized"))
+            return
+        }
+        instance.updateTags(newTags)
     }
 }
 

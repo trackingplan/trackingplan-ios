@@ -13,7 +13,7 @@ class TrackingplanNetworkManager {
     
     private static let batchTimeoutSecs: TimeInterval = 30.0
     
-    private let config: TrackingplanConfig
+    private var config: TrackingplanConfig
     var currentSession: TrackingplanSession?
     private let trackQueue: TrackingplanQueue
     private let logger: TrackingPlanLogger
@@ -27,6 +27,10 @@ class TrackingplanNetworkManager {
         self.storage = storage
         logger = TrackingplanManager.logger
         trackQueue = TrackingplanQueue.sharedInstance
+    }
+    
+    func updateConfig(_ config: TrackingplanConfig) {
+        self.config = config
     }
 
     // This method must be called from serialQueue

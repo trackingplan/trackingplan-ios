@@ -15,7 +15,7 @@ open class TrackingplanInstance {
     private let logger: TrackingPlanLogger
     
     private let networkManager: TrackingplanNetworkManager
-    private let config: TrackingplanConfig
+    internal var config: TrackingplanConfig
     
     private var currentSession: TrackingplanSession?
     private let storage: Storage
@@ -253,6 +253,14 @@ open class TrackingplanInstance {
         serialQueue.sync {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("onPause lifecycle called"))
             self.stopSession()
+        }
+    }
+    
+    func updateTags(_ newTags: Dictionary<String, String>) {
+        serialQueue.async {
+            self.config.tags.merge(newTags) { _, new in new }
+            self.networkManager.updateConfig(self.config)
+            TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Tags updated: \(newTags.keys.joined(separator: ", "))"))
         }
     }
 }
