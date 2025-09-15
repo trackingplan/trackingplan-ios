@@ -5,6 +5,7 @@
 
 import Foundation
 import UIKit
+import TrackingplanShared
 
 
 class TrackingplanNetworkManager {
@@ -42,6 +43,7 @@ class TrackingplanNetworkManager {
     private func processRequest(trackRequest: TrackingplanTrackRequest) {
 
         let url = trackRequest.endpoint
+        let method = trackRequest.method ?? "UNKNOWN"
 
         if url.hasPrefix(config.trackingplanEndpoint) || url.hasPrefix(config.trackingplanConfigEndpoint) {
             // Ignore requests to trackingplan
@@ -49,23 +51,23 @@ class TrackingplanNetworkManager {
         }
 
         guard let provider = self.getAnalyticsProvider(url: url, providerDomains: self.config.providerDomains) else {
-            logger.debug(message: TrackingplanMessage.message("Unknown destination. Ignoring request \(url)"))
+            logger.debug(message: TrackingplanMessage.message("Unknown destination. Ignoring request \(method) \(url)"))
             return
         }
 
         // TODO: Queue requests while the session is not available yet
         guard let currentSession = currentSession else {
-            logger.debug(message: TrackingplanMessage.message("Unknown session. Ignoring request \(url)"))
+            logger.debug(message: TrackingplanMessage.message("Unknown session. Ignoring request \(method) \(url)"))
             return
         }
 
         if !currentSession.trackingEnabled {
-            logger.debug(message: TrackingplanMessage.message("Tracking disabled for current session. Ignoring request \(url)"))
+            logger.debug(message: TrackingplanMessage.message("Tracking disabled for current session. Ignoring request \(method) \(url)"))
             return
         }
 
         if provider != TrackingplanNetworkManager.trackingplanProvider {
-            logger.debug(message: TrackingplanMessage.message("Processing request \(url)"))
+            logger.debug(message: TrackingplanMessage.message("Processing request \(method) \(url)"))
         }
 
         let track = TrackingplanTrack(request: trackRequest,
@@ -89,12 +91,7 @@ class TrackingplanNetworkManager {
         if url == "TRACKINGPLAN" {
             return TrackingplanNetworkManager.trackingplanProvider
         }
-        for (pattern, provider) in providerDomains {
-            if url.contains(pattern){
-                return provider
-            }
-        }
-        return nil
+        return TrackingplanShared.UrlMatcher().matchProvider(providers: providerDomains, requestUrl: url)
     }
 
     // This method must be called from serialQueue
