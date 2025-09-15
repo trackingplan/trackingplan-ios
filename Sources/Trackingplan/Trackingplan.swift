@@ -73,7 +73,7 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.5.0"
+    public static let sdkVersion = "1.6.0"
 
     public static let sharedInstance = TrackingplanManager()
 
@@ -206,8 +206,8 @@ private var defaultProviderDomains: Dictionary<String, String> =
     "segmentapi": "segment",
     "seg-api": "segment",
     "segment-api": "segment",
-    "api.amplitude.com": "amplitude",
-    "api2.amplitude.com": "amplitude",
+    "regex:api[0-9]*\\.amplitude.com": "amplitude",
+    "regex:api[0-9]*\\.branch\\.io/v[0-9]+": "branch",
     "braze.com/api": "braze",
     "braze.eu/api": "braze",
     "ping.chartbeat.net": "chartbeat",
@@ -216,6 +216,7 @@ private var defaultProviderDomains: Dictionary<String, String> =
     "trk.kissmetrics.io": "kissmetrics",
     "ct.pinterest.com": "pinterest",
     "facebook.com/tr/": "facebook",
+    "graph.facebook.com/*/*/activities": "facebook",
     "track.hubspot.com/__": "hubspot",
     "klaviyo.com/api/track": "klaviyo",
     "app.pendo.io/data": "pendo",
@@ -229,6 +230,8 @@ private var defaultProviderDomains: Dictionary<String, String> =
     "/i/adsct": "twitter",
     "bat.bing.com": "bing",
     "pdst.fm": "podsights",
+    "analytics.us.tiktok.com/api/v1/app_sdk/batch": "tiktok",
+    "analytics.us.tiktok.com/api/v1/app_sdk/monitor": "tiktok",
     // Firebase
     "app-measurement.com": "googleanalyticsfirebase",
     "app-analytics-services.com": "googleanalyticsfirebase",
