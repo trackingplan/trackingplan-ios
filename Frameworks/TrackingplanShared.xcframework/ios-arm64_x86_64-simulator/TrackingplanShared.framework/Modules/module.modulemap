@@ -1,0 +1,5 @@
+framework module "TrackingplanShared" {
+    umbrella header "TrackingplanShared.h"
+    export *
+    module * { export * }
+}
