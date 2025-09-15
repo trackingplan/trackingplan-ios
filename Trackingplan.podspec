@@ -17,5 +17,12 @@ Pod::Spec.new do |s|
   :git => 'https://github.com/trackingplan/trackingplan-ios.git',
   :tag => "#{s.version}" }
   s.requires_arc      = true
-  s.source_files = 'Sources/Trackingplan/**/*'
+  s.source_files = 'Sources/Trackingplan/**/*.swift'
+  s.resources = 'Sources/Trackingplan/PrivacyInfo.xcprivacy'
+  s.vendored_frameworks = 'Frameworks/TrackingplanShared.xcframework'
+  s.preserve_paths = 'Frameworks/TrackingplanShared.xcframework.zip'
+
+  s.prepare_command = <<-CMD
+    cd Frameworks && unzip -o -q TrackingplanShared.xcframework.zip
+  CMD
 end
