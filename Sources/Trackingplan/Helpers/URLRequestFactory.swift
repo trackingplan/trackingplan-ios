@@ -27,35 +27,49 @@
 import Foundation
 
 class URLRequestFactory {
+
+    // MARK: - Private Helper
+
+    private func configureRequest(_ request: URLRequest, from originalRequest: URLRequest) -> URLRequest {
+        var configured = request
+
+        // Check if request uses httpBodyStream
+        if let _ = originalRequest.httpBodyStream {
+            // IMPORTANT: Do not read httpBodyStream as it can only be consumed once.
+            // Reading it here would exhaust the stream, causing the original request to timeout
+            // when URLSession tries to send it (since NetworkRequestSniffableUrlProtocol returns false).
+            // See: https://github.com/trackingplan/tp/issues/12013
+            configured.httpBody = nil
+
+            // Mark request as having incomplete body data for logging purposes
+            let mutableRequest = (configured as NSURLRequest).mutableCopy() as! NSMutableURLRequest
+            URLProtocol.setProperty("YES", forKey: "TrackingplanBodyIncomplete", in: mutableRequest)
+            configured = mutableRequest as URLRequest
+        } else {
+            configured.httpBody = originalRequest.httpBody
+        }
+
+        // Copy other request properties
+        configured.httpMethod = originalRequest.httpMethod!
+        configured.allHTTPHeaderFields = originalRequest.allHTTPHeaderFields
+        configured.cachePolicy = originalRequest.cachePolicy
+
+        return configured
+    }
+
+    // MARK: - Public Methods
+
     public func createURLRequest(originalUrlRequest: URLRequest, url: URL) -> URLRequest {
         var urlString = "\(url.absoluteString)\(originalUrlRequest.url!.path)"
         if let query = originalUrlRequest.url?.query {
             urlString = "\(urlString)?\(query)"
         }
-        var redirectedRequest = URLRequest(url: URL(string: urlString)!)
-        if let _ = originalUrlRequest.httpBodyStream,
-           let httpBodyStreamData = originalUrlRequest.getHttpBodyStreamData() {
-            redirectedRequest.httpBody = httpBodyStreamData
-        } else {
-            redirectedRequest.httpBody = originalUrlRequest.httpBody
-        }
-        redirectedRequest.httpMethod = originalUrlRequest.httpMethod!
-        redirectedRequest.allHTTPHeaderFields = originalUrlRequest.allHTTPHeaderFields
-        redirectedRequest.cachePolicy = originalUrlRequest.cachePolicy
-        return redirectedRequest
+        let redirectedRequest = URLRequest(url: URL(string: urlString)!)
+        return configureRequest(redirectedRequest, from: originalUrlRequest)
     }
-    
+
     public func createURLRequest(originalUrlRequest: URLRequest) -> URLRequest {
-        var redirectedRequest = URLRequest(url: originalUrlRequest.url!)
-        if let _ = originalUrlRequest.httpBodyStream,
-           let httpBodyStreamData = originalUrlRequest.getHttpBodyStreamData() {
-            redirectedRequest.httpBody = httpBodyStreamData
-        } else {
-            redirectedRequest.httpBody = originalUrlRequest.httpBody
-        }
-        redirectedRequest.httpMethod = originalUrlRequest.httpMethod!
-        redirectedRequest.allHTTPHeaderFields = originalUrlRequest.allHTTPHeaderFields
-        redirectedRequest.cachePolicy = originalUrlRequest.cachePolicy
-        return redirectedRequest
+        let redirectedRequest = URLRequest(url: originalUrlRequest.url!)
+        return configureRequest(redirectedRequest, from: originalUrlRequest)
     }
 }

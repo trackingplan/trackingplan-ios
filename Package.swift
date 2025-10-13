@@ -27,7 +27,7 @@ let package = Package(
             dependencies: ["TrackingplanShared"]),
         .binaryTarget(
             name: "TrackingplanShared",
-            path: "./Frameworks/TrackingplanShared.xcframework.zip"),
+            path: "./Frameworks/TrackingplanShared.xcframework"),
         .testTarget(
             name: "TrackingplanTests",
             dependencies: ["Trackingplan"]),

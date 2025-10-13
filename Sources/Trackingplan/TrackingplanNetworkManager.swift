@@ -11,9 +11,9 @@ import TrackingplanShared
 class TrackingplanNetworkManager {
 
     private static let trackingplanProvider = "trackingplan"
-    
+
     private static let batchTimeoutSecs: TimeInterval = 30.0
-    
+
     private var config: TrackingplanConfig
     var currentSession: TrackingplanSession?
     private let trackQueue: TrackingplanQueue
@@ -29,7 +29,7 @@ class TrackingplanNetworkManager {
         logger = TrackingplanManager.logger
         trackQueue = TrackingplanQueue.sharedInstance
     }
-    
+
     func updateConfig(_ config: TrackingplanConfig) {
         self.config = config
     }
@@ -54,6 +54,11 @@ class TrackingplanNetworkManager {
             logger.debug(message: TrackingplanMessage.message("Unknown destination. Ignoring request \(method) \(url)"))
             return
         }
+        
+        if trackRequest.usesBodyStream {
+            logger.debug(message: TrackingplanMessage.message("Request uses httpBodyStream. Ignoring request \(method) \(url)"))
+            return
+        }
 
         // TODO: Queue requests while the session is not available yet
         guard let currentSession = currentSession else {
@@ -75,7 +80,7 @@ class TrackingplanNetworkManager {
                                       sampleRate: currentSession.samplingRate,
                                       sessionId: currentSession.sessionId,
                                       config: self.config)
-        
+
         if provider == TrackingplanNetworkManager.trackingplanProvider {
             self.trackQueue.enqueue(track)
         } else if config.batchSize == 1 {
@@ -86,7 +91,7 @@ class TrackingplanNetworkManager {
             checkAndSend()
         }
     }
-    
+
     private func getAnalyticsProvider(url:String, providerDomains: Dictionary<String, String>) -> String?{
         if url == "TRACKINGPLAN" {
             return TrackingplanNetworkManager.trackingplanProvider
@@ -103,7 +108,7 @@ class TrackingplanNetworkManager {
         logger.debug(message: TrackingplanMessage.message("Queued Trackingplan \(eventName) event"))
         self.processRequest(trackRequest: trackRequest)
     }
-    
+
     func queueSize() -> Int {
         return trackQueue.taskCount()
     }
@@ -111,43 +116,43 @@ class TrackingplanNetworkManager {
     func clearQueue() {
         trackQueue.cleanUp()
     }
-    
+
     private func checkAndSend(forceSend: Bool = false) {
-        
+
         let numTasks = trackQueue.taskCount()
-        
+
         if numTasks == 0 {
             return
         }
-        
+
         if !forceSend && numTasks < config.batchSize {
             startWatcher()
             return
         }
-        
+
         // stopWatcher is called from resolveStackAndSend
         resolveStackAndSend()
     }
-    
+
     private func startWatcher() {
-        
+
         if watcher != nil { return }
-        
+
         let watcher = DispatchWorkItem {
             self.watcher = nil
             self.logger.debug(message: TrackingplanMessage.message("Watcher timed out. Force batch send"))
             self.checkAndSend(forceSend: true)
         }
-        
+
         self.watcher = watcher
         self.logger.debug(message: TrackingplanMessage.message("Watcher started"))
-        
+
         serialQueue.asyncAfter(
             deadline: .now() + TrackingplanNetworkManager.batchTimeoutSecs,
             execute: watcher
         )
     }
-    
+
     private func stopWatcher() {
         if watcher == nil { return }
         watcher?.cancel()
@@ -161,37 +166,37 @@ class TrackingplanNetworkManager {
         let rawQueue = self.trackQueue.retrieveRaw()
         sendTracks(tracks: rawQueue, completionHandler: completionHandler)
     }
-    
+
     private func resolveNow(track: TrackingplanTrack) {
         sendTracks(tracks: [track.dictionary!])
     }
-    
+
     private func sendTracks(tracks: [[String: Any]], completionHandler: ((Bool)->Void)? = nil) {
-        
+
         guard !tracks.isEmpty else {
             completionHandler?(false)
             return
         }
-        
+
         let startTime = ProcessInfo.processInfo.systemUptime
-        
+
         var request = task()
         request.httpBody = try! JSONSerialization.data(withJSONObject: tracks, options: [])
-        
+
         let sessionId = currentSession?.sessionId ?? ""
 
         let logger = self.logger
-        
+
         var taskId: UIBackgroundTaskIdentifier = .invalid
-        
+
         let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
-            
+
             defer {
                 self.serialQueue.async {
                     Utils.endBackgroundTask(taskId)
                 }
             }
-            
+
             // TODO: Retry on error
             // Check for errors
             if let error = error {
@@ -228,7 +233,7 @@ class TrackingplanNetworkManager {
 
             let elapsedTime = Int64((ProcessInfo.processInfo.systemUptime - startTime) * 1000)
             logger.debug(message: TrackingplanMessage.message("Batch sent (\(elapsedTime) ms)"))
-            
+
             self.serialQueue.async {
                 if let currentSession = self.currentSession, !sessionId.isEmpty,
                    sessionId == currentSession.sessionId, currentSession.updateLastActivity() {
@@ -238,23 +243,23 @@ class TrackingplanNetworkManager {
                 completionHandler?(true)
             }
         }
-        
+
         // Request extra time in case the app goes to background while sending the request
         taskId = Utils.startBackgroundTask(name: "TrackingplanSend") { task.cancel() }
 
         logger.debug(message: TrackingplanMessage.message("Sending batch..."))
         task.resume()
     }
-    
+
     private func task() -> URLRequest {
-        
+
         var endpoint = config.trackingplanEndpoint + config.tp_id
-        
+
         if config.testing {
             let ts = Int64(Date().timeIntervalSince1970 * 1000)
             endpoint = "\(endpoint)?t=\(ts)"
         }
-        
+
         let url = URL(string: endpoint)
         var request = URLRequest(url: url!)
         request.httpMethod = "POST"
