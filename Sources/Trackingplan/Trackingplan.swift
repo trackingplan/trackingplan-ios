@@ -51,11 +51,11 @@ open class Trackingplan {
             trackingplanConfigEndpoint: trackingplanConfigEndpoint
         )
     }
-    
+
     /**
      Updates the tags in the current configuration by merging new tags with existing ones.
      This method can be called from any thread and will be executed safely in the Trackingplan thread.
-     
+
      - Parameters:
         - newTags: The tags to add or update. New tags will be merged with existing tags, with new values overwriting existing ones for the same keys.
      */
@@ -73,7 +73,7 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.6.2"
+    public static let sdkVersion = "1.6.3"
 
     public static let sharedInstance = TrackingplanManager()
 
@@ -103,7 +103,7 @@ open class TrackingplanManager  {
         if debug {
             TrackingplanManager.logger.enableLogging()
         }
-        
+
         // Check if regression testing is enabled using the new regressionTesting option. Fallback to
         // environment variables for backwards compatibility.
         var regressionTestingEnabled = regressionTesting
@@ -127,7 +127,7 @@ open class TrackingplanManager  {
         )
 
         if regressionTestingEnabled {
-            
+
             config.batchSize = 1
             config.ignoreSampling = true
 
@@ -174,10 +174,10 @@ open class TrackingplanManager  {
         } else {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Trackingplan start failed"))
         }
-        
+
         return mainInstance
     }
-    
+
     func updateTags(_ newTags: Dictionary<String, String>) {
         guard let instance = mainInstance else {
             TrackingplanManager.logger.debug(message: TrackingplanMessage.message("Cannot update tags. Trackingplan was not initialized"))

@@ -6,7 +6,6 @@
 import Foundation
 import UIKit
 
-
 class TrackingplanQueue {
 
     public static let sharedInstance = TrackingplanQueue()
@@ -140,40 +139,20 @@ struct TrackingplanTrackRequest: Codable {
     let post_payload: String?
     var post_payload_type: String = RequestDataType.string.rawValue
     let request_id: String
-    let usesBodyStream: Bool
-
-    // Exclude usesBodyStream from encoding (internal flag only, not sent to server)
-    enum CodingKeys: String, CodingKey {
-        case endpoint
-        case method
-        case post_payload
-        case post_payload_type
-        case request_id
-    }
-
-    // Custom decoder to handle usesBodyStream (not in encoded data)
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        endpoint = try container.decode(String.self, forKey: .endpoint)
-        method = try container.decodeIfPresent(String.self, forKey: .method)
-        post_payload = try container.decodeIfPresent(String.self, forKey: .post_payload)
-        post_payload_type = try container.decode(String.self, forKey: .post_payload_type)
-        request_id = try container.decode(String.self, forKey: .request_id)
-        usesBodyStream = false  // Default value when decoding
-    }
+    // Only set to true when the request couldn't read the body
+    let isBodyIncomplete: Bool?
 
     init(urlRequest: URLRequest) {
         // The original provider endpoint URL
         self.endpoint = urlRequest.url!.absoluteString
-        // The request method. It's not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
+        // The request method. It’s not just POST & GET, but the info needed to inform the parsers how to decode the payload within that provider, e.g. Beacon.
         self.method = urlRequest.httpMethod!
-        // The payload, in its original form. If it's a POST request, the raw payload, if it's a GET, the querystring (are there other ways?).
+        // The payload, in its original form. If it’s a POST request, the raw payload, if it’s a GET, the querystring (are there other ways?).
         let requestHttpBody = urlRequest.getHttpBody()
         self.post_payload = requestHttpBody?.body
         self.post_payload_type =  requestHttpBody?.dataType.rawValue ?? RequestDataType.string.rawValue
         self.request_id = UUID().uuidString.lowercased()
-        // Check if request uses httpBodyStream (body data couldn't be captured)
-        self.usesBodyStream = URLProtocol.property(forKey: "TrackingplanBodyIncomplete", in: urlRequest) != nil
+        self.isBodyIncomplete = URLProtocol.property(forKey: "TrackingplanBodyIncomplete", in: urlRequest) != nil ? true : nil
     }
 
     // Used to create Trackingplan events
@@ -189,6 +168,6 @@ struct TrackingplanTrackRequest: Codable {
         self.endpoint = "TRACKINGPLAN"
         self.method = "POST"
         self.request_id = UUID().uuidString.lowercased()
-        self.usesBodyStream = false
+        self.isBodyIncomplete = nil
     }
 }
