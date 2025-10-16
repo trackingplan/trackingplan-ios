@@ -73,7 +73,7 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.6.3"
+    public static let sdkVersion = "1.6.4"
 
     public static let sharedInstance = TrackingplanManager()
 
