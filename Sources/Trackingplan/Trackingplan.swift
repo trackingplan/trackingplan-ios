@@ -73,7 +73,7 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "1.6.4"
+    public static let sdkVersion = "1.6.5"
 
     public static let sharedInstance = TrackingplanManager()
 
@@ -216,7 +216,8 @@ private var defaultProviderDomains: Dictionary<String, String> =
     "trk.kissmetrics.io": "kissmetrics",
     "ct.pinterest.com": "pinterest",
     "facebook.com/tr/": "facebook",
-    "graph.facebook.com/*/*/activities": "facebook",
+    "graph.facebook.com/*/*/activities": "facebookgraph",
+    "regex:ep[0-9]+\\.facebook\\.com/.*/activities": "facebookgraph",
     "track.hubspot.com/__": "hubspot",
     "klaviyo.com/api/track": "klaviyo",
     "app.pendo.io/data": "pendo",
