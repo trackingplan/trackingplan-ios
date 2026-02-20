@@ -11,18 +11,19 @@ import TrackingplanShared
 class TrackingplanNetworkManager {
 
     private static let trackingplanProvider = "trackingplan"
-    
+
     private static let batchTimeoutSecs: TimeInterval = 30.0
-    
+
     private var config: TrackingplanConfig
-    var currentSession: TrackingplanSession?
+    var currentSession: TrackingplanShared.TrackingplanSession?
     private let trackQueue: TrackingplanQueue
     private let logger: TrackingPlanLogger
     private let serialQueue: DispatchQueue
-    private let storage: Storage
+    private let storage: TrackingplanShared.Storage
     private var watcher: DispatchWorkItem?
+    private var preQueue: [TrackingplanTrackRequest] = []
 
-    init(config: TrackingplanConfig, serialQueue: DispatchQueue, storage: Storage) {
+    init(config: TrackingplanConfig, serialQueue: DispatchQueue, storage: TrackingplanShared.Storage) {
         self.config = config
         self.serialQueue = serialQueue
         self.storage = storage
@@ -45,42 +46,75 @@ class TrackingplanNetworkManager {
         let url = trackRequest.endpoint
         let method = trackRequest.method ?? "UNKNOWN"
 
+        // Always ignore trackingplan endpoints
         if url.hasPrefix(config.trackingplanEndpoint) || url.hasPrefix(config.trackingplanConfigEndpoint) {
-            // Ignore requests to trackingplan
             return
         }
 
+        // PreQueue raw requests that arrive before session is available.
+        // Defer provider detection until processing, so custom domains are properly matched.
+        guard let currentSession = currentSession else {
+            preQueue.append(trackRequest)
+            logger.verbose("Request pre-queued (session not ready): \(method) \(url)")
+            return
+        }
+
+        // Normal flow: validate, evaluate sampling, and queue
+        processRequestWithSession(trackRequest: trackRequest, session: currentSession)
+    }
+
+    private func processRequestWithSession(trackRequest: TrackingplanTrackRequest, session: TrackingplanSession) {
+        let url = trackRequest.endpoint
+        let method = trackRequest.method ?? "UNKNOWN"
+        logger.verbose("Processing request \(method) \(url)")
+
         guard let provider = self.getAnalyticsProvider(url: url, providerDomains: self.config.providerDomains) else {
-            logger.debug(message: TrackingplanMessage.message("Unknown destination. Ignoring request \(method) \(url)"))
+            logger.debug("Unknown destination. Ignoring request \(method) \(url)")
             return
         }
 
         if let isBodyIncomplete = trackRequest.isBodyIncomplete, isBodyIncomplete {
-            logger.debug(message: TrackingplanMessage.message("Incomplete body. Ignoring request \(method) \(url)"))
+            logger.debug("Incomplete body. Ignoring request \(method) \(url)")
             return
         }
 
-        // TODO: Queue requests while the session is not available yet
-        guard let currentSession = currentSession else {
-            logger.debug(message: TrackingplanMessage.message("Unknown session. Ignoring request \(method) \(url)"))
+        // For Firebase protobuf payloads, build a synthetic JSON payload so the
+        // adaptive sampling matcher can extract event names from it.
+        let matchingPayload: String?
+        if provider == "googleanalyticsfirebase",
+           let rawPayload = trackRequest.post_payload,
+           let eventNames = FirebasePayloadDecoder.extractEventNames(payload: rawPayload),
+           let syntheticPayload = FirebasePayloadDecoder.buildSyntheticPayload(eventNames: eventNames) {
+            matchingPayload = syntheticPayload
+        } else {
+            matchingPayload = trackRequest.post_payload
+        }
+
+        let sharedRequest = TrackingplanShared.Request(
+            provider: provider,
+            endpoint: trackRequest.endpoint,
+            payload: matchingPayload
+        )
+        let result = session.evaluateSamplingDecision(request: sharedRequest)
+
+        // Handle the sealed class result (SamplingResult is either Drop or Include)
+        if let drop = result as? SamplingResult.Drop {
+            logger.debug("Request dropped (reason: \(drop.reason.value)) \(method) \(url)")
             return
         }
 
-        if !currentSession.trackingEnabled {
-            logger.debug(message: TrackingplanMessage.message("Tracking disabled for current session. Ignoring request \(method) \(url)"))
-            return
-        }
+        // After Drop check, result must be Include (sealed class has only two cases).
+        // Defensive programming: if cast fails, sampling_rate is omitted and ingest logs it.
+        let samplingResult = result as? SamplingResult.Include
 
-        if provider != TrackingplanNetworkManager.trackingplanProvider {
-            logger.debug(message: TrackingplanMessage.message("Processing request \(method) \(url)"))
-        }
-
+        // Int() conversion needed: KMP Int becomes Int32 in Swift, but iOS uses Int
         let track = TrackingplanTrack(request: trackRequest,
                                       provider: provider,
-                                      sampleRate: currentSession.samplingRate,
-                                      sessionId: currentSession.sessionId,
+                                      sampleRate: samplingResult.map { Int($0.effectiveSampleRate) },
+                                      samplingMode: samplingResult?.samplingMode.value,
+                                      sessionId: session.sessionId,
                                       config: self.config)
-        
+
         if provider == TrackingplanNetworkManager.trackingplanProvider {
             self.trackQueue.enqueue(track)
         } else if config.batchSize == 1 {
@@ -90,6 +124,25 @@ class TrackingplanNetworkManager {
             self.trackQueue.enqueue(track)
             checkAndSend()
         }
+    }
+
+    func processPreQueue() {
+        guard !preQueue.isEmpty else { return }
+        guard let session = currentSession else {
+            logger.debug("Cannot process preQueue: session not available")
+            return
+        }
+
+        let requests = preQueue
+        preQueue.removeAll()
+
+        logger.debug("Processing \(requests.count) pre-queued requests...")
+
+        for trackRequest in requests {
+            processRequestWithSession(trackRequest: trackRequest, session: session)
+        }
+
+        logger.debug("Pre-queue processed")
     }
     
     private func getAnalyticsProvider(url:String, providerDomains: Dictionary<String, String>) -> String?{
@@ -102,10 +155,10 @@ class TrackingplanNetworkManager {
     // This method must be called from serialQueue
     func queueTrackingplanEvent(eventName: String) {
         guard let trackRequest = TrackingplanTrackRequest(eventName: eventName) else {
-            logger.debug(message: TrackingplanMessage.message("Failed to queue Trackingplan \(eventName) event"))
+            logger.debug("Failed to queue Trackingplan \(eventName) event")
             return
         }
-        logger.debug(message: TrackingplanMessage.message("Queued Trackingplan \(eventName) event"))
+        logger.debug("Queued Trackingplan \(eventName) event")
         self.processRequest(trackRequest: trackRequest)
     }
     
@@ -115,6 +168,10 @@ class TrackingplanNetworkManager {
 
     func clearQueue() {
         trackQueue.cleanUp()
+    }
+
+    func clearPreQueue() {
+        preQueue.removeAll()
     }
     
     private func checkAndSend(forceSend: Bool = false) {
@@ -140,12 +197,12 @@ class TrackingplanNetworkManager {
         
         let watcher = DispatchWorkItem {
             self.watcher = nil
-            self.logger.debug(message: TrackingplanMessage.message("Watcher timed out. Force batch send"))
+            self.logger.debug("Watcher timed out. Force batch send")
             self.checkAndSend(forceSend: true)
         }
-        
+
         self.watcher = watcher
-        self.logger.debug(message: TrackingplanMessage.message("Watcher started"))
+        self.logger.debug("Watcher started")
         
         serialQueue.asyncAfter(
             deadline: .now() + TrackingplanNetworkManager.batchTimeoutSecs,
@@ -157,7 +214,7 @@ class TrackingplanNetworkManager {
         if watcher == nil { return }
         watcher?.cancel()
         watcher = nil
-        self.logger.debug(message: TrackingplanMessage.message("Watcher stopped"))
+        self.logger.debug("Watcher stopped")
     }
 
     func resolveStackAndSend(completionHandler: ((Bool)->Void)? = nil) {
@@ -168,21 +225,35 @@ class TrackingplanNetworkManager {
     }
     
     private func resolveNow(track: TrackingplanTrack) {
-        sendTracks(tracks: [track.dictionary!])
+        guard let dictionary = track.dictionary else { return }
+        sendTracks(tracks: [dictionary])
     }
     
     private func sendTracks(tracks: [[String: Any]], completionHandler: ((Bool)->Void)? = nil) {
-        
+
         guard !tracks.isEmpty else {
             completionHandler?(false)
             return
         }
-        
+
+        // Log batch payload in debug mode for testing (before dryRun check so tests can verify)
+        if config.debug,
+           let jsonData = try? JSONSerialization.data(withJSONObject: tracks, options: []),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            logger.debug("Batch: \(jsonString)")
+        }
+
+        if config.dryRun {
+            logger.debug("Dry run mode enabled. No tracks sent")
+            completionHandler?(true)
+            return
+        }
+
         let startTime = ProcessInfo.processInfo.systemUptime
-        
+
         var request = task()
         request.httpBody = try! JSONSerialization.data(withJSONObject: tracks, options: [])
-        
+
         let sessionId = currentSession?.sessionId ?? ""
 
         let logger = self.logger
@@ -200,7 +271,7 @@ class TrackingplanNetworkManager {
             // TODO: Retry on error
             // Check for errors
             if let error = error {
-                logger.debug(message: TrackingplanMessage.error("500", "\(error)"))
+                logger.error("Code: 500, Message: \(error)")
                 if let completionHandler = completionHandler {
                     self.serialQueue.async {
                         completionHandler(false)
@@ -211,7 +282,7 @@ class TrackingplanNetworkManager {
 
             // Check if there is a response
             guard let httpResponse = response as? HTTPURLResponse else {
-                logger.debug(message: TrackingplanMessage.message("Invalid response"))
+                logger.debug("Invalid response")
                 if let completionHandler = completionHandler {
                     self.serialQueue.async {
                         completionHandler(false)
@@ -222,7 +293,7 @@ class TrackingplanNetworkManager {
 
             // Check if the status code is in the success range (200-299)
             guard (200...299).contains(httpResponse.statusCode) else {
-                logger.debug(message: TrackingplanMessage.message("HTTP response status code: \(httpResponse.statusCode)"))
+                logger.debug("HTTP response status code: \(httpResponse.statusCode)")
                 if let completionHandler = completionHandler {
                     self.serialQueue.async {
                         completionHandler(false)
@@ -232,22 +303,22 @@ class TrackingplanNetworkManager {
             }
 
             let elapsedTime = Int64((ProcessInfo.processInfo.systemUptime - startTime) * 1000)
-            logger.debug(message: TrackingplanMessage.message("Batch sent (\(elapsedTime) ms)"))
-            
+            logger.debug("Batch sent (\(elapsedTime) ms)")
+
             self.serialQueue.async {
                 if let currentSession = self.currentSession, !sessionId.isEmpty,
                    sessionId == currentSession.sessionId, currentSession.updateLastActivity() {
                     self.storage.saveSession(session: currentSession)
-                    logger.debug(message: TrackingplanMessage.message("Last session activity updated and saved"))
+                    logger.debug("Last session activity updated and saved")
                 }
                 completionHandler?(true)
             }
         }
-        
+
         // Request extra time in case the app goes to background while sending the request
         taskId = Utils.startBackgroundTask(name: "TrackingplanSend") { task.cancel() }
 
-        logger.debug(message: TrackingplanMessage.message("Sending batch..."))
+        logger.debug("Sending batch...")
         task.resume()
     }
     
@@ -267,20 +338,21 @@ class TrackingplanNetworkManager {
         return request
     }
 
-    func downloadSamplingRateSync() -> Int? {
+    /// Downloads the raw ingest configuration JSON from the config endpoint.
+    /// Does not parse the JSON - parsing is done by the caller (IngestConfigCache).
+    /// - Returns: The raw JSON string, or nil if download fails
+    func downloadIngestConfigRawSync() -> String? {
 
         guard let url = self.config.sampleRateURL() else {
-            logger.debug(message: TrackingplanMessage.message("Error downloading sample rate due to missing URL"))
+            logger.debug("Error downloading config due to missing URL")
             return nil
         }
 
         let logger = self.logger
-
-        var sampleRate: Int?
-
+        var rawJson: String?
         let semaphore = DispatchSemaphore(value: 0)
 
-        let task = URLSession.shared.dataTask(with: url) {[weak self](data, response, error) in
+        let task = URLSession.shared.dataTask(with: url) { (data, response, error) in
 
             defer {
                 semaphore.signal()
@@ -288,32 +360,16 @@ class TrackingplanNetworkManager {
 
             guard let dataResponse = data, error == nil else {
                 let errorMessage = error?.localizedDescription ?? "unknown error"
-                logger.debug(message: TrackingplanMessage.message("Error downloading sampling rate: \(errorMessage)"))
+                logger.debug("Error downloading ingest config: \(errorMessage)")
                 return
             }
 
-            do {
-                let json = try JSONSerialization.jsonObject(with: dataResponse, options: []) as! [String: AnyObject]
-
-                if let environmentSampleRate = json["environment_rates"]?[self?.config.environment ?? "" as String] as? Int{
-                    sampleRate = environmentSampleRate
-                    return
-                }
-
-                if let defaultSampleRate = json["sample_rate"] as? Int{
-                    sampleRate = defaultSampleRate
-                    return
-                }
-            } catch let error {
-                let errorMessage = error.localizedDescription
-                logger.debug(message: TrackingplanMessage.message("Error downloading sampling rate: \(errorMessage)"))
-            }
+            rawJson = String(data: dataResponse, encoding: .utf8)
         }
 
         task.resume()
-
         semaphore.wait()
 
-        return sampleRate
+        return rawJson
     }
 }

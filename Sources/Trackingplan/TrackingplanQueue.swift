@@ -50,7 +50,7 @@ class TrackingplanQueue {
             semaphore.signal()
         }
         semaphore.wait()
-        let tracks = storage.map({$0.dictionary!})
+        let tracks = storage.compactMap { $0.dictionary }
         storage.removeAll()
         return tracks
     }
@@ -63,7 +63,7 @@ class TrackingplanQueue {
 }
 
 
-struct TrackingplanTrack: Codable {
+struct TrackingplanTrack: Encodable {
 
     let provider: String
     let request: TrackingplanTrackRequest?
@@ -75,11 +75,17 @@ struct TrackingplanTrack: Codable {
     let ts: Int64
     let sdk: String
     let sdk_version: String
-    let sampling_rate: Int
+    let sampling_rate: Int?
+    let sampling_mode: String?
     let session_id: String
     let debug: Bool
 
-    init(request: TrackingplanTrackRequest, provider: String, sampleRate: Int, sessionId: String, config: TrackingplanConfig) {
+    private enum CodingKeys: String, CodingKey {
+        case provider, request, context, tp_id, source_alias, environment
+        case tags, ts, sdk, sdk_version, sampling_rate, sampling_mode, session_id, debug
+    }
+
+    init(request: TrackingplanTrackRequest, provider: String, sampleRate: Int?, samplingMode: String?, sessionId: String, config: TrackingplanConfig) {
         self.provider = provider
         self.request = request
         self.context = TrackingplanTrackContext()
@@ -90,6 +96,7 @@ struct TrackingplanTrack: Codable {
         self.sdk = TrackingplanManager.sdk
         self.sdk_version = TrackingplanManager.sdkVersion
         self.sampling_rate = sampleRate
+        self.sampling_mode = samplingMode
         self.session_id = sessionId
         self.debug = config.debug
 
@@ -99,6 +106,27 @@ struct TrackingplanTrack: Codable {
         } else {
             self.tags = nil
         }
+    }
+
+    // Custom encoding to omit nil values (JSONEncoder includes null by default)
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(provider, forKey: .provider)
+        try container.encodeIfPresent(request, forKey: .request)
+        try container.encode(context, forKey: .context)
+        try container.encode(tp_id, forKey: .tp_id)
+        try container.encode(source_alias, forKey: .source_alias)
+        try container.encode(environment, forKey: .environment)
+        try container.encodeIfPresent(tags, forKey: .tags)
+        try container.encode(ts, forKey: .ts)
+        try container.encode(sdk, forKey: .sdk)
+        try container.encode(sdk_version, forKey: .sdk_version)
+        // Note: If sampling_rate is nil, it's intentionally omitted to signal a bug in the SDK.
+        // Ingest will log this case and use a default value of 1.
+        try container.encodeIfPresent(sampling_rate, forKey: .sampling_rate)
+        try container.encodeIfPresent(sampling_mode, forKey: .sampling_mode)
+        try container.encode(session_id, forKey: .session_id)
+        try container.encode(debug, forKey: .debug)
     }
 }
 
