@@ -1,10 +1,10 @@
 Pod::Spec.new do |s|
   s.name              = 'Trackingplan'
-  s.version           = '1.6.5'
+  s.version           = '2.0.0'
   s.summary           = 'Trackingplan iOS SDK'
   s.homepage          = 'https://github.com/trackingplan/trackingplan-ios'
-  s.platform          = :ios, '12.0'
-  s.ios.deployment_target = '13.0'
+  s.platform          = :ios, '14.0'
+  s.ios.deployment_target = '14.0'
   s.swift_version = '5.0'
   s.license           = {
     :type => 'Copyright',
@@ -19,5 +19,6 @@ Pod::Spec.new do |s|
   s.requires_arc      = true
   s.source_files = 'Sources/Trackingplan/**/*'
   s.vendored_frameworks = 'Frameworks/TrackingplanShared.xcframework'
+  s.dependency 'SwiftProtobuf', '~> 1.28'
 
 end
