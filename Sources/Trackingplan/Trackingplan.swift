@@ -76,7 +76,7 @@ open class TrackingplanManager  {
     public static let defaultBatchSize = 10
 
     // please update to match the release version
-    public static let sdkVersion = "2.0.0"
+    public static let sdkVersion = "2.0.1"
 
     public static let sharedInstance = TrackingplanManager()
 
@@ -216,39 +216,40 @@ extension Bundle {
 
 private var defaultProviderDomains: Dictionary<String, String> =
 [
-    "api.segment.io": "segment",
-    "segmentapi": "segment",
-    "seg-api": "segment",
-    "segment-api": "segment",
+    "regex:(analytics|consent|app|gdpr|subscription|ssrv)\\.adjust\\.(com|io)": "adjust",
     "regex:api[0-9]*\\.amplitude.com": "amplitude",
+    "bat.bing.com": "bing",
     "regex:api[0-9]*\\.branch\\.io/v[0-9]+": "branch",
     "braze.com/api": "braze",
     "braze.eu/api": "braze",
     "ping.chartbeat.net": "chartbeat",
-    "api.mixpanel.com/track": "mixpanel",
-    "api-eu.mixpanel.com/track": "mixpanel",
-    "trk.kissmetrics.io": "kissmetrics",
-    "ct.pinterest.com": "pinterest",
+    "track.customer.io/events/": "customerio",
     "facebook.com/tr/": "facebook",
     "graph.facebook.com/*/*/activities": "facebookgraph",
     "regex:ep[0-9]+\\.facebook\\.com/.*/activities": "facebookgraph",
-    "track.hubspot.com/__": "hubspot",
-    "klaviyo.com/api/track": "klaviyo",
-    "app.pendo.io/data": "pendo",
-    "matomo.php": "matomo",
+    "regex:(/activity|/fls).*src=": "floodlight",
     "rs.fullstory.com/rec%8137": "fullstory",
     "rs.fullstory.com/rec%8193": "fullstory",
-    "logx.optimizely.com/v1/events": "optimizely",
-    "track.customer.io/events/": "customerio",
-    "alb.reddit.com/rp.gif": "reddit",
-    "px.ads.linkedin.com": "linkedin",
-    "/i/adsct": "twitter",
-    "bat.bing.com": "bing",
-    "pdst.fm": "podsights",
-    "analytics.us.tiktok.com/api/v1/app_sdk/batch": "tiktok",
-    "analytics.us.tiktok.com/api/v1/app_sdk/monitor": "tiktok",
-    // Firebase
     "app-measurement.com": "googleanalyticsfirebase",
     "app-analytics-services.com": "googleanalyticsfirebase",
-    "app-analytics-services-att.com": "googleanalyticsfirebase"
+    "app-analytics-services-att.com": "googleanalyticsfirebase",
+    "track.hubspot.com/__": "hubspot",
+    "trk.kissmetrics.io": "kissmetrics",
+    "klaviyo.com/api/track": "klaviyo",
+    "px.ads.linkedin.com": "linkedin",
+    "matomo.php": "matomo",
+    "api.mixpanel.com/track": "mixpanel",
+    "api-eu.mixpanel.com/track": "mixpanel",
+    "logx.optimizely.com/v1/events": "optimizely",
+    "app.pendo.io/data": "pendo",
+    "ct.pinterest.com": "pinterest",
+    "pdst.fm": "podsights",
+    "alb.reddit.com/rp.gif": "reddit",
+    "api.segment.io": "segment",
+    "segmentapi": "segment",
+    "seg-api": "segment",
+    "segment-api": "segment",
+    "analytics.us.tiktok.com/api/v1/app_sdk/batch": "tiktok",
+    "analytics.us.tiktok.com/api/v1/app_sdk/monitor": "tiktok",
+    "/i/adsct": "twitter"
 ]
