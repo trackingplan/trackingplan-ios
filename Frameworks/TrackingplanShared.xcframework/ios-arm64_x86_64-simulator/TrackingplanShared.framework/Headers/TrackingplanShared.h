@@ -6,7 +6,7 @@
 #import <Foundation/NSString.h>
 #import <Foundation/NSValue.h>
 
-@class TrackingplanSharedCacheStorage, TrackingplanSharedIngestConfigCacheCompanion, TrackingplanSharedTrackingplanIngestConfig, TrackingplanSharedKeyValueStoreCompanion, TrackingplanSharedKeyValueStore, TrackingplanSharedKotlinEnumCompanion, TrackingplanSharedKotlinEnum<E>, TrackingplanSharedLogLevel, TrackingplanSharedKotlinArray<T>, TrackingplanSharedSamplingOptionsCompanion, TrackingplanSharedSamplingOptions, TrackingplanSharedServiceLocator, TrackingplanSharedStorageCompanion, TrackingplanSharedTrackingplanSession, TrackingplanSharedIngestConfigCache, TrackingplanSharedStorage, TrackingplanSharedTestLoggerLogMessage, TrackingplanSharedTimeProviderCompanion, TrackingplanSharedTrackingplanConfigCompanion, TrackingplanSharedTrackingplanConfig, TrackingplanSharedTrackingplanConfigBuilder, TrackingplanSharedKotlinRandom, TrackingplanSharedTrackingplanIngestConfigCompanion, TrackingplanSharedTrackingplanIngestConfigParser, TrackingplanSharedTrackingplanSessionCompanion, TrackingplanSharedSamplingResult, TrackingplanSharedRequest, TrackingplanSharedAdaptiveSamplingPattern, TrackingplanSharedUrlMatcher, TrackingplanSharedAdaptiveSamplingEvaluator, TrackingplanSharedAdaptiveSamplingMatcher, TrackingplanSharedMatchResult, TrackingplanSharedMatchCondition, TrackingplanSharedAdaptiveSamplingPatternCompanion, TrackingplanSharedAdaptiveSamplingPatternParser, TrackingplanSharedDropReason, TrackingplanSharedMatchConditionCompanion, TrackingplanSharedMatchConditionAndCompanion, TrackingplanSharedMatchConditionAnd, TrackingplanSharedMatchValue, TrackingplanSharedMatchConditionFieldsCompanion, TrackingplanSharedMatchConditionFields, TrackingplanSharedMatchConditionNotCompanion, TrackingplanSharedMatchConditionNot, TrackingplanSharedMatchConditionOrCompanion, TrackingplanSharedMatchConditionOr, TrackingplanSharedMatchValueCompanion, TrackingplanSharedMatchValueMultipleCompanion, TrackingplanSharedMatchValueMultiple, TrackingplanSharedMatchValueSingleCompanion, TrackingplanSharedMatchValueSingle, TrackingplanSharedPayloadFlattener, TrackingplanSharedRequestDataExtractor, TrackingplanSharedKotlinPair<__covariant A, __covariant B>, TrackingplanSharedSamplingMode, TrackingplanSharedSamplingResultDrop, TrackingplanSharedSamplingResultInclude, TrackingplanSharedSpecialKeys, TrackingplanSharedKotlinThrowable, TrackingplanSharedKotlinException, TrackingplanSharedKotlinRuntimeException, TrackingplanSharedKotlinRandomDefault, TrackingplanSharedKotlinByteArray, TrackingplanSharedKotlinx_serialization_coreSerializersModule, TrackingplanSharedKotlinx_serialization_coreSerialKind, TrackingplanSharedKotlinNothing, TrackingplanSharedKotlinByteIterator;
+@class TrackingplanSharedCacheStorage, TrackingplanSharedIngestConfigCacheCompanion, TrackingplanSharedTrackingplanIngestConfig, TrackingplanSharedKeyValueStoreCompanion, TrackingplanSharedKeyValueStore, TrackingplanSharedKotlinEnumCompanion, TrackingplanSharedKotlinEnum<E>, TrackingplanSharedLogLevel, TrackingplanSharedKotlinArray<T>, TrackingplanSharedKotlinx_serialization_jsonJsonElement, TrackingplanSharedSamplingOptionsCompanion, TrackingplanSharedSamplingOptions, TrackingplanSharedServiceLocator, TrackingplanSharedStorageCompanion, TrackingplanSharedTrackingplanSession, TrackingplanSharedIngestConfigCache, TrackingplanSharedStorage, TrackingplanSharedTestLoggerLogMessage, TrackingplanSharedTimeProviderCompanion, TrackingplanSharedTrackingplanConfigCompanion, TrackingplanSharedTrackingplanConfig, TrackingplanSharedTrackingplanConfigBuilder, TrackingplanSharedKotlinRandom, TrackingplanSharedTrackingplanIngestConfigCompanion, TrackingplanSharedTrackingplanIngestConfigParser, TrackingplanSharedTrackingplanSessionCompanion, TrackingplanSharedSamplingResult, TrackingplanSharedRequest, TrackingplanSharedAdaptiveSamplingPattern, TrackingplanSharedUrlMatcher, TrackingplanSharedAdaptiveSamplingEvaluator, TrackingplanSharedAdaptiveSamplingMatcher, TrackingplanSharedMatchResult, TrackingplanSharedMatchCondition, TrackingplanSharedAdaptiveSamplingPatternCompanion, TrackingplanSharedAdaptiveSamplingPatternParser, TrackingplanSharedDropReason, TrackingplanSharedMatchConditionCompanion, TrackingplanSharedMatchConditionAndCompanion, TrackingplanSharedMatchConditionAnd, TrackingplanSharedMatchValue, TrackingplanSharedMatchConditionFieldsCompanion, TrackingplanSharedMatchConditionFields, TrackingplanSharedMatchConditionNotCompanion, TrackingplanSharedMatchConditionNot, TrackingplanSharedMatchConditionOrCompanion, TrackingplanSharedMatchConditionOr, TrackingplanSharedMatchValueCompanion, TrackingplanSharedMatchValueMultipleCompanion, TrackingplanSharedMatchValueMultiple, TrackingplanSharedMatchValueSingleCompanion, TrackingplanSharedMatchValueSingle, TrackingplanSharedPayloadFlattener, TrackingplanSharedRequestDataExtractor, TrackingplanSharedKotlinPair<__covariant A, __covariant B>, TrackingplanSharedSamplingMode, TrackingplanSharedSamplingResultDrop, TrackingplanSharedSamplingResultInclude, TrackingplanSharedSpecialKeys, TrackingplanSharedKotlinThrowable, TrackingplanSharedKotlinx_serialization_jsonJsonElementCompanion, TrackingplanSharedKotlinException, TrackingplanSharedKotlinRuntimeException, TrackingplanSharedKotlinRandomDefault, TrackingplanSharedKotlinByteArray, TrackingplanSharedKotlinx_serialization_coreSerializersModule, TrackingplanSharedKotlinx_serialization_coreSerialKind, TrackingplanSharedKotlinNothing, TrackingplanSharedKotlinByteIterator;
 
 @protocol TrackingplanSharedKotlinComparable, TrackingplanSharedLogger, TrackingplanSharedKotlinx_serialization_coreKSerializer, TrackingplanSharedTimeProvider, TrackingplanSharedKotlinIterator, TrackingplanSharedKotlinx_serialization_coreEncoder, TrackingplanSharedKotlinx_serialization_coreSerialDescriptor, TrackingplanSharedKotlinx_serialization_coreSerializationStrategy, TrackingplanSharedKotlinx_serialization_coreDecoder, TrackingplanSharedKotlinx_serialization_coreDeserializationStrategy, TrackingplanSharedKotlinx_serialization_coreCompositeEncoder, TrackingplanSharedKotlinAnnotation, TrackingplanSharedKotlinx_serialization_coreCompositeDecoder, TrackingplanSharedKotlinx_serialization_coreSerializersModuleCollector, TrackingplanSharedKotlinKClass, TrackingplanSharedKotlinKDeclarationContainer, TrackingplanSharedKotlinKAnnotatedElement, TrackingplanSharedKotlinKClassifier;
 
@@ -299,13 +299,13 @@ __attribute__((swift_name("PlatformLogger")))
 __attribute__((objc_subclassing_restricted))
 __attribute__((swift_name("SamplingOptions")))
 @interface TrackingplanSharedSamplingOptions : TrackingplanSharedBase
-- (instancetype)initWithUseAdaptiveSampling:(BOOL)useAdaptiveSampling adaptiveSamplingPatterns:(NSArray<NSString *> *)adaptiveSamplingPatterns __attribute__((swift_name("init(useAdaptiveSampling:adaptiveSamplingPatterns:)"))) __attribute__((objc_designated_initializer));
+- (instancetype)initWithUseAdaptiveSampling:(BOOL)useAdaptiveSampling adaptiveSamplingPatterns:(NSArray<TrackingplanSharedKotlinx_serialization_jsonJsonElement *> *)adaptiveSamplingPatterns __attribute__((swift_name("init(useAdaptiveSampling:adaptiveSamplingPatterns:)"))) __attribute__((objc_designated_initializer));
 @property (class, readonly, getter=companion) TrackingplanSharedSamplingOptionsCompanion *companion __attribute__((swift_name("companion")));
-- (TrackingplanSharedSamplingOptions *)doCopyUseAdaptiveSampling:(BOOL)useAdaptiveSampling adaptiveSamplingPatterns:(NSArray<NSString *> *)adaptiveSamplingPatterns __attribute__((swift_name("doCopy(useAdaptiveSampling:adaptiveSamplingPatterns:)")));
+- (TrackingplanSharedSamplingOptions *)doCopyUseAdaptiveSampling:(BOOL)useAdaptiveSampling adaptiveSamplingPatterns:(NSArray<TrackingplanSharedKotlinx_serialization_jsonJsonElement *> *)adaptiveSamplingPatterns __attribute__((swift_name("doCopy(useAdaptiveSampling:adaptiveSamplingPatterns:)")));
 - (BOOL)isEqual:(id _Nullable)other __attribute__((swift_name("isEqual(_:)")));
 - (NSUInteger)hash __attribute__((swift_name("hash()")));
 - (NSString *)description __attribute__((swift_name("description()")));
-@property (readonly) NSArray<NSString *> *adaptiveSamplingPatterns __attribute__((swift_name("adaptiveSamplingPatterns")));
+@property (readonly) NSArray<TrackingplanSharedKotlinx_serialization_jsonJsonElement *> *adaptiveSamplingPatterns __attribute__((swift_name("adaptiveSamplingPatterns")));
 @property (readonly) BOOL useAdaptiveSampling __attribute__((swift_name("useAdaptiveSampling")));
 @end
 
@@ -664,8 +664,8 @@ __attribute__((swift_name("AdaptiveSamplingPatternParser")))
 + (instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));
 + (instancetype)adaptiveSamplingPatternParser __attribute__((swift_name("init()")));
 @property (class, readonly, getter=shared) TrackingplanSharedAdaptiveSamplingPatternParser *shared __attribute__((swift_name("shared")));
-- (TrackingplanSharedAdaptiveSamplingPattern * _Nullable)parsePatternJsonString:(NSString *)jsonString __attribute__((swift_name("parsePattern(jsonString:)")));
-- (NSArray<TrackingplanSharedAdaptiveSamplingPattern *> *)parsePatternsJsonStrings:(NSArray<NSString *> *)jsonStrings __attribute__((swift_name("parsePatterns(jsonStrings:)")));
+- (TrackingplanSharedAdaptiveSamplingPattern * _Nullable)parsePatternElement:(TrackingplanSharedKotlinx_serialization_jsonJsonElement *)element __attribute__((swift_name("parsePattern(element:)")));
+- (NSArray<TrackingplanSharedAdaptiveSamplingPattern *> *)parsePatternsElements:(NSArray<TrackingplanSharedKotlinx_serialization_jsonJsonElement *> *)elements __attribute__((swift_name("parsePatterns(elements:)")));
 @end
 
 __attribute__((objc_subclassing_restricted))
@@ -1065,6 +1065,16 @@ __attribute__((swift_name("KotlinArray")))
 @property (readonly) int32_t size __attribute__((swift_name("size")));
 @end
 
+
+/**
+ * @note annotations
+ *   kotlinx.serialization.Serializable(with=NormalClass(value=kotlinx/serialization/json/JsonElementSerializer))
+*/
+__attribute__((swift_name("Kotlinx_serialization_jsonJsonElement")))
+@interface TrackingplanSharedKotlinx_serialization_jsonJsonElement : TrackingplanSharedBase
+@property (class, readonly, getter=companion) TrackingplanSharedKotlinx_serialization_jsonJsonElementCompanion *companion __attribute__((swift_name("companion")));
+@end
+
 __attribute__((swift_name("Kotlinx_serialization_coreSerializationStrategy")))
 @protocol TrackingplanSharedKotlinx_serialization_coreSerializationStrategy
 @required
@@ -1146,6 +1156,16 @@ __attribute__((swift_name("KotlinIterator")))
 @required
 - (BOOL)hasNext __attribute__((swift_name("hasNext()")));
 - (id _Nullable)next __attribute__((swift_name("next()")));
+@end
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Kotlinx_serialization_jsonJsonElement.Companion")))
+@interface TrackingplanSharedKotlinx_serialization_jsonJsonElementCompanion : TrackingplanSharedBase
++ (instancetype)alloc __attribute__((unavailable));
++ (instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));
++ (instancetype)companion __attribute__((swift_name("init()")));
+@property (class, readonly, getter=shared) TrackingplanSharedKotlinx_serialization_jsonJsonElementCompanion *shared __attribute__((swift_name("shared")));
+- (id<TrackingplanSharedKotlinx_serialization_coreKSerializer>)serializer __attribute__((swift_name("serializer()")));
 @end
 
 __attribute__((swift_name("Kotlinx_serialization_coreEncoder")))

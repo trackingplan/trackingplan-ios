@@ -206,7 +206,7 @@ final class PreQueueTests: BaseInstrumentedTest {
                 "sample_rate": 100,
                 "options": {
                     "useAdaptiveSampling": true,
-                    "adaptiveSamplingPatterns": ["{\\"provider\\":\\"amplitude\\",\\"sample_rate\\":1}"]
+                    "adaptiveSamplingPatterns": [{"provider": "amplitude", "sample_rate": 1}]
                 }
             }
             """

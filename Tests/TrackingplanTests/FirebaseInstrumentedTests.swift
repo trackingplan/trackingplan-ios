@@ -25,7 +25,7 @@ final class FirebaseInstrumentedTests: BaseInstrumentedTest {
                 "sample_rate": 100,
                 "options": {
                     "useAdaptiveSampling": true,
-                    "adaptiveSamplingPatterns": ["{\\"provider\\":\\"googleanalyticsfirebase\\",\\"match\\":{\\"event_name\\":\\"purchase\\"},\\"sample_rate\\":1}"]
+                    "adaptiveSamplingPatterns": [{"provider": "googleanalyticsfirebase", "match": {"event_name": "purchase"}, "sample_rate": 1}]
                 }
             }
             """
